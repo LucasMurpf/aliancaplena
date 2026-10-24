@@ -23,6 +23,7 @@
 - Telas/Server Actions só chamam `src/lib/services/*`. Serviço: auth → permissão → Zod → transação (escrita + `registrarLog`).
 - Logs: só inserção; nenhum código atualiza ou apaga `Log`.
 - Anexos: JPG, PNG, WEBP, HEIC, PDF; máx. 10 MB; bucket privado; acesso por URL assinada.
+- Sessão: expira após 15 min sem ação (expiração deslizante no servidor + aviso na tela aos 14 min com botão Continuar; logout aos 15 min).
 - Login: 5 falhas em 15 min para o mesmo e-mail bloqueiam novas tentativas; mensagem genérica "E-mail ou senha inválidos".
 - Navegação só por menu lateral (fixo ≥ `lg`, gaveta ☰ abaixo disso); botão flutuante "➕ Novo lançamento" apenas para `financeiro.lancar`.
 - Categorias seed: Entrada — Dízimo (nominal), Oferta, Missões, Doação, Rendimentos; Saída — Água, Luz, Aluguel, Combustível, Materiais, Manutenção, Missões (repasse).
@@ -197,15 +198,16 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
 - Consumes: `prisma`, `permissoes`, `erros`.
 - Produces:
   - `hashSenha(s: string): Promise<string>` (bcryptjs, custo 12); `conferirSenha(s, hash): Promise<boolean>`.
-  - `criarTokenSessao(usuarioId: string): Promise<string>` / `lerTokenSessao(token: string): Promise<{ usuarioId: string } | null>` — JWT HS256 com `SESSION_SECRET`, expira em 7 dias.
+  - `criarTokenSessao(usuarioId: string): Promise<string>` / `lerTokenSessao(token: string): Promise<{ usuarioId: string } | null>` — JWT HS256 com `SESSION_SECRET`, `exp` = agora + `TEMPO_SESSAO_SEGUNDOS`.
+  - `TEMPO_SESSAO_SEGUNDOS = 15 * 60` exportado.
   - `type UsuarioAtual = { id: string; nome: string; email: string; papeis: Papel[] }`
   - `carregarUsuario(usuarioId: string): Promise<UsuarioAtual | null>` — `null` se não existe ou `ativo=false`.
   - `obterUsuarioAtual(): Promise<UsuarioAtual | null>` — lê o cookie `sessao` (via `next/headers`) e chama `carregarUsuario`.
   - `exigir(usuario: UsuarioAtual | null, p: Permissao): UsuarioAtual` — lança `NaoAutorizado` se nulo ou sem permissão.
-  - Cookie: nome `sessao`, `httpOnly`, `secure` em produção, `sameSite: 'lax'`, `path: '/'`, maxAge 7 dias. Helpers `gravarCookieSessao(token)` e `apagarCookieSessao()`.
+  - Cookie: nome `sessao`, `httpOnly`, `secure` em produção, `sameSite: 'lax'`, `path: '/'`, maxAge `TEMPO_SESSAO_SEGUNDOS`. Helpers `gravarCookieSessao(token)` e `apagarCookieSessao()`.
   - **Regra para serviços:** todo serviço recebe `ator: UsuarioAtual | null` como primeiro parâmetro (testável sem cookie); Server Actions passam `await obterUsuarioAtual()`.
 
-- [ ] **Step 1: Testes** — hash ≠ senha e confere; token válido volta o id; token adulterado ou expirado → `null`; `carregarUsuario` de usuário inativo → `null`; `exigir(null, …)` lança `NaoAutorizado`; `exigir(pastor, 'financeiro.lancar')` lança.
+- [ ] **Step 1: Testes** — hash ≠ senha e confere; token válido volta o id; token adulterado → `null`; com `vi.setSystemTime`, token criado há 14 min é válido e há 16 min → `null`; `carregarUsuario` de usuário inativo → `null`; `exigir(null, …)` lança `NaoAutorizado`; `exigir(pastor, 'financeiro.lancar')` lança.
 - [ ] **Steps 2–4.** **Step 5:** Commit `feat: hash de senha, sessão JWT e checagem de permissão`.
 
 ---
@@ -392,9 +394,10 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
 - Consumes: `obterUsuarioAtual`, `entrar`, `instalar`, `sistemaInstalado`, `pode`.
 - Produces: `itensDoMenu(papeis: Papel[]): { rotulo: string; href: string; icone: string }[]` (função pura em `MenuLateral.tsx` ou `src/lib/menu.ts`): Início `/`, Lançamentos `/lancamentos`, Membros `/membros`, Contas, Categorias, Usuários, Dados da igreja (sob "Configurações") — cada item só se `pode(...)`. Usuário sem `financeiro.ver` recebe só `Início` apontando para `/em-breve`. Componente `<Formulario>` padrão que mostra `ErroApp.message` vindo da action.
 
-- [ ] **Step 1: Teste** de `itensDoMenu`: Pastor não vê Contas/Categorias/Usuários; Tesoureiro vê Contas/Categorias, não Usuários; Admin vê tudo; Eventos vê só o item para `/em-breve`.
+- [ ] **Step 1: Testes** — `tests/unit/inatividade.test.ts` da função pura `estadoInatividade(msParado: number): 'ativo' | 'aviso' | 'expirar'` em `src/lib/inatividade.ts`: 13 min → `ativo`, 14 min → `aviso`, 15 min → `expirar`. E de `itensDoMenu`: Pastor não vê Contas/Categorias/Usuários; Tesoureiro vê Contas/Categorias, não Usuários; Admin vê tudo; Eventos vê só o item para `/em-breve`.
 - [ ] **Step 2:** FAIL → **Step 3:** implementar telas:
-  - `middleware.ts`: sem cookie `sessao` em rota de `(sistema)` → `/login`. (Validação real do token acontece no layout via `obterUsuarioAtual`; inválido → apaga cookie e redireciona.)
+  - `middleware.ts`: sem cookie `sessao` em rota de `(sistema)` → `/login?expirou=1`. Com token válido, **reemite** o cookie com novo `exp` (expiração deslizante) a cada requisição; token inválido/expirado → apaga cookie e redireciona para `/login?expirou=1`. (Checagem de usuário ativo continua no layout via `obterUsuarioAtual`.) O login mostra "Sua sessão expirou por inatividade" quando `expirou=1`.
+  - `src/components/MonitorInatividade.tsx` (client, no layout): escuta `pointerdown`, `keydown`, `touchstart`, `scroll`; aos 14 min parado mostra modal "Sua sessão vai expirar em 1 minuto" com botão **Continuar** (chama a Server Action `renovarSessao()`, que reemite o cookie); aos 15 min chama a action `sair()` e vai para `/login?expirou=1`. Interação também chama `renovarSessao()` no máximo 1 vez por minuto (throttle), cobrindo quem digita um formulário longo sem enviar.
   - `/instalacao`: se `sistemaInstalado()` → redireciona para `/login`. Formulário com os campos de `instalar`; sucesso → grava cookie e vai para `/`.
   - `/login`: se não instalado → `/instalacao`. Sucesso → `/`.
   - Layout `(sistema)`: menu fixo em `lg:`; abaixo disso, botão ☰ no topo abre gaveta com overlay (fecha ao tocar fora, ao escolher item e com Esc); mostra nome da igreja e do usuário, botão "Sair". Botão flutuante ➕ (canto inferior direito) se `financeiro.lancar`.
@@ -457,7 +460,7 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
 **Modelo:** sonnet
 
 **Files:**
-- Create: `playwright.config.ts`, `tests/e2e/{login,lancamento-celular,dar-baixa}.spec.ts`, `tests/e2e/preparar.ts`
+- Create: `playwright.config.ts`, `tests/e2e/{login,lancamento-celular,dar-baixa,inatividade}.spec.ts`, `tests/e2e/preparar.ts`
 - Modify: `README.md`
 
 - [ ] **Step 1:** `preparar.ts`: reseta o banco de teste, roda `instalar` com admin `admin@teste.local` e cria um Tesoureiro `tesoureiro@teste.local` e um lançamento PREVISTO. Playwright sobe `npm run build && npm start` com `DATABASE_URL_TEST`.
@@ -465,7 +468,8 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
   - `login`: credencial errada mostra "E-mail ou senha inválidos"; certa leva ao dashboard.
   - `lancamento-celular` (viewport 375×812): abre ☰, vai em Lançamentos → ➕, cria Entrada "Dízimo" de "1.234,56" para um membro, volta ao Início e vê `R$ 1.234,56` em Entradas.
   - `dar-baixa`: abre o previsto, dá baixa, status vira Realizado e o histórico mostra "Deu baixa".
-- [ ] **Step 3:** `npm run test:e2e` → 3 PASS.
+  - `inatividade` (com `page.clock` do Playwright): após login, avançar 14 min → aparece o aviso; clicar Continuar → aviso some; avançar 15 min sem interação → volta ao login com "Sua sessão expirou por inatividade".
+- [ ] **Step 3:** `npm run test:e2e` → 4 PASS.
 - [ ] **Step 4:** README em pt-BR: o que é; rodar localmente (Docker + `npm run db:migrate` + `npm run dev`); **instalar para uma nova igreja** (criar projeto no Neon, bucket R2 com chave, deploy na Vercel com as variáveis do `.env.example`, abrir o site → tela de Instalação); **backup manual** com `pg_dump "$DATABASE_URL" > backup-AAAA-MM-DD.sql` e restauração com `psql`.
 - [ ] **Step 5:** Verificação final: `npm test`, `npm run test:e2e`, `npm run build`, `npx tsc --noEmit`, `npm run lint` — todos verdes; colar a saída resumida no relatório.
 - [ ] **Step 6:** Commit `test: fluxos E2E e documentação de instalação`.
