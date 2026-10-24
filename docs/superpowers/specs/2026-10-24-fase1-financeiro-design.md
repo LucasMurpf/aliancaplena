@@ -181,6 +181,8 @@ aliancaplena/
 
 **Erros:** os serviços lançam erros tipados (`NaoAutorizado`, `Validacao`, `NaoEncontrado`, `RegraDeNegocio`) com mensagens em pt-BR; as telas exibem a mensagem sem detalhes técnicos. Erros inesperados aparecem como "Algo deu errado, tente novamente" e são registrados no log do servidor.
 
+**Sessão por inatividade:** a sessão expira após **15 minutos sem ação** do usuário. O servidor renova o prazo a cada requisição (expiração deslizante); na tela, um contador de inatividade (toque, clique, teclado) mostra aos 14 minutos o aviso "Sua sessão vai expirar em 1 minuto" com botão **Continuar** e, aos 15, faz logout e volta ao login. Usuário inativado pelo Admin perde o acesso na próxima requisição.
+
 **Segurança:** senhas com hash forte; cookie de sessão httpOnly, Secure, SameSite=Lax; limite de tentativas de login (5 falhas em 15 minutos por e-mail bloqueia novas tentativas temporariamente); nenhum dado sensível em URL.
 
 **Backup:** o Neon mantém histórico de restauração (no plano Free, janela curta). Na Fase 1 a rotina de backup se limita a documentar no README como exportar o banco (`pg_dump`); backup automático agendado fica como item da Fase 3.
