@@ -1,5 +1,5 @@
 import { pathToFileURL } from "node:url";
-import type { PrismaClient } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 type CategoriaInicial = { nome: string; tipo: "ENTRADA" | "SAIDA"; nominal: boolean };
 
@@ -20,7 +20,8 @@ const CATEGORIAS: CategoriaInicial[] = [
 ];
 
 // Idempotente por (nome, tipo): rodar de novo não duplica nem altera categorias existentes.
-export async function semearCategorias(prisma: PrismaClient): Promise<void> {
+// Aceita o cliente normal ou o de uma transação (usado pela Instalação).
+export async function semearCategorias(prisma: Prisma.TransactionClient): Promise<void> {
   for (const c of CATEGORIAS) {
     await prisma.categoria.upsert({
       where: { nome_tipo: { nome: c.nome, tipo: c.tipo } },
