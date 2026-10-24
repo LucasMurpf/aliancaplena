@@ -47,7 +47,7 @@ export async function anexarArquivo(
 ): Promise<Anexo> {
   const quem = exigir(ator, "financeiro.lancar");
 
-  const confere = ASSINATURAS[arquivo.mime];
+  const confere = Object.hasOwn(ASSINATURAS, arquivo.mime) ? ASSINATURAS[arquivo.mime] : undefined;
   if (!confere || !confere(arquivo.dados)) throw new Validacao(MSG_TIPO);
   if (arquivo.dados.length > TAMANHO_MAXIMO) throw new Validacao(MSG_TAMANHO);
 

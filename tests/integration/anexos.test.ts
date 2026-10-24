@@ -85,6 +85,17 @@ describe("anexarArquivo", () => {
     expect(st.arquivos.size).toBe(0);
   });
 
+  it("recusa MIME com nome de propriedade herdada", async () => {
+    const st = storageMemoria();
+    for (const mime of ["toString", "constructor", "__proto__", "valueOf", "hasOwnProperty"]) {
+      await expect(anexarArquivo(admin, lanc.id, { nome: "a.pdf", mime, dados: pdf() }, st)).rejects.toThrow(
+        new Validacao("Tipo de arquivo não permitido"),
+      );
+    }
+    expect(st.arquivos.size).toBe(0);
+    expect(await prisma.anexo.count()).toBe(0);
+  });
+
   it("recusa conteúdo que não bate com o tipo declarado", async () => {
     const st = storageMemoria();
     await expect(
