@@ -6,9 +6,17 @@ import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
 import { pode } from "@/lib/permissoes";
 import { formatarBRL, parseValorBR } from "@/lib/dinheiro";
-import { formatarDataBR, parseDataBR } from "@/lib/datas";
-import { NaoEncontrado, RegraDeNegocio, Validacao } from "@/lib/erros";
+import { formatarDataBR } from "@/lib/datas";
+import { NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
 import { diffCampos, registrarLog } from "@/lib/log";
+import {
+  esquemaData,
+  esquemaDataOpcional,
+  esquemaId,
+  esquemaMotivo,
+  esquemaTextoOpcional,
+  validar,
+} from "./comum";
 
 export const MSG_LANCAMENTO_NAO_ENCONTRADO = "Lançamento não encontrado";
 export const MSG_CANCELADO = "Lançamento cancelado não pode ser alterado";
@@ -46,19 +54,6 @@ export type FiltroLancamentos = {
 const enumDe = <T extends string>(o: Record<string, T>, msg: string) =>
   z.enum(Object.values(o) as [T, ...T[]], { error: msg });
 
-const esquemaId = (msg: string) => z.string({ error: msg }).trim().min(1, msg);
-const esquemaData = z.string({ error: "Data inválida" }).trim().transform((t) => parseDataBR(t));
-const esquemaDataOpcional = z
-  .string({ error: "Data inválida" })
-  .trim()
-  .optional()
-  .transform((t) => (t ? parseDataBR(t) : undefined));
-const esquemaTextoOpcional = z
-  .string({ error: "Texto inválido" })
-  .trim()
-  .optional()
-  .transform((t) => (t ? t : undefined));
-
 const esquemaDados = z.object({
   tipo: enumDe(TipoMovimento, "Tipo de lançamento inválido"),
   valor: z.string({ error: "Valor inválido" }).transform((t) => parseValorBR(t)),
@@ -81,8 +76,6 @@ const esquemaDados = z.object({
 });
 type DadosValidos = z.output<typeof esquemaDados>;
 
-const esquemaMotivo = z.string({ error: "Informe o motivo do cancelamento" }).trim().min(1, "Informe o motivo do cancelamento");
-
 const esquemaFiltro = z.object({
   de: esquemaDataOpcional,
   ate: esquemaDataOpcional,
@@ -94,12 +87,6 @@ const esquemaFiltro = z.object({
   busca: esquemaTextoOpcional,
   pagina: z.number({ error: "Página inválida" }).int("Página inválida").min(1, "Página inválida").default(1),
 });
-
-function validar<T>(esquema: z.ZodType<T, unknown>, dados: unknown): T {
-  const r = esquema.safeParse(dados);
-  if (!r.success) throw new Validacao(r.error.issues[0]?.message ?? "Dados inválidos.");
-  return r.data;
-}
 
 // ---------------------------------------------------- Vínculos e regras
 
