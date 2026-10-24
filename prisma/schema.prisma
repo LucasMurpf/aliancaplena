@@ -83,12 +83,15 @@ model UsuarioPapel {
 model Membro {
   id             String    @id @default(cuid())
   nome           String
+  nomeBusca      String    @default("")
   telefone       String?
   dataNascimento DateTime? @db.Date
   ativo          Boolean   @default(true)
   criadoEm       DateTime  @default(now())
 
   lancamentos Lancamento[]
+
+  @@index([nomeBusca])
 }
 
 model Conta {

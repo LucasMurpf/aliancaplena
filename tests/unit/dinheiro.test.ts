@@ -24,6 +24,19 @@ describe("parseValorBR", () => {
   test("recusa com mensagem pt-BR", () => {
     expect(() => parseValorBR("abc")).toThrow("Valor inválido");
   });
+
+  test.each(["0", "0,00", "R$ 0,0", "00"])("aceita zero %s só com permitirZero", (t) => {
+    expect(() => parseValorBR(t)).toThrow(Validacao);
+    expect(parseValorBR(t, { permitirZero: true }).isZero()).toBe(true);
+  });
+
+  test.each(["-5", "-0", "abc", ""])("permitirZero continua recusando %s", (t) => {
+    expect(() => parseValorBR(t, { permitirZero: true })).toThrow(Validacao);
+  });
+
+  test("permitirZero não afeta valores positivos", () => {
+    expect(parseValorBR("1.234,56", { permitirZero: true }).equals("1234.56")).toBe(true);
+  });
 });
 
 describe("formatarBRL", () => {

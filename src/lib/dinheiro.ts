@@ -7,15 +7,15 @@ const PADRAO_VALOR_BR = /^\s*(?:R\$\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})
 
 /**
  * Converte texto digitado em formato brasileiro para Decimal.
- * Rejeita zero, negativos e qualquer formato fora do padrão.
+ * Rejeita negativos e qualquer formato fora do padrão; zero só com `permitirZero`.
  */
-export function parseValorBR(texto: string): Prisma.Decimal {
+export function parseValorBR(texto: string, opcoes?: { permitirZero?: boolean }): Prisma.Decimal {
   const casado = PADRAO_VALOR_BR.exec(texto);
   if (!casado) throw new Validacao("Valor inválido");
 
   const normalizado = casado[1].replace(/\./g, "").replace(",", ".");
   const valor = new Prisma.Decimal(normalizado);
-  if (valor.lte(0)) throw new Validacao("Valor inválido");
+  if (opcoes?.permitirZero ? valor.lt(0) : valor.lte(0)) throw new Validacao("Valor inválido");
   return valor;
 }
 

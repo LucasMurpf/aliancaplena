@@ -1,5 +1,5 @@
 // Instalação inicial: cria configuração, primeira conta, usuário ADMIN e categorias.
-import { Prisma, type TipoConta } from "@prisma/client";
+import type { TipoConta } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { carregarUsuario, hashSenha, type UsuarioAtual } from "@/lib/auth";
@@ -34,13 +34,6 @@ export type DadosInstalacao = {
   adminSenha: string;
 };
 
-// Saldo inicial pode ser zero (parseValorBR rejeita zero; ele continua cuidando do resto).
-const PADRAO_ZERO = /^\s*(?:R\$\s*)?0+(?:,0{1,2})?\s*$/;
-function parseSaldoInicial(texto: string): Prisma.Decimal {
-  if (texto.trim() === "" || PADRAO_ZERO.test(texto)) return new Prisma.Decimal(0);
-  return parseValorBR(texto);
-}
-
 /** Instalado = existe ao menos um usuário. */
 export async function sistemaInstalado(): Promise<boolean> {
   return (await prisma.usuario.count()) > 0;
@@ -50,7 +43,7 @@ export async function instalar(d: DadosInstalacao): Promise<UsuarioAtual> {
   const r = esquemaInstalacao.safeParse(d);
   if (!r.success) throw new Validacao(r.error.issues[0]?.message ?? "Dados inválidos.");
   const v = r.data;
-  const saldoInicial = parseSaldoInicial(v.saldoInicial);
+  const saldoInicial = parseValorBR(v.saldoInicial.trim() === "" ? "0" : v.saldoInicial, { permitirZero: true });
 
   // Hash fora da transação: bcrypt é lento e não deve segurar o lock.
   const senhaHash = await hashSenha(v.adminSenha);
