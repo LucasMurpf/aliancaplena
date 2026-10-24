@@ -9,6 +9,7 @@ import { formatarBRL, parseValorBR } from "@/lib/dinheiro";
 import { formatarDataBR } from "@/lib/datas";
 import { NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
 import { diffCampos, registrarLog } from "@/lib/log";
+import { rastrearServidor } from "./metricas";
 import {
   esquemaData,
   esquemaDataOpcional,
@@ -279,6 +280,7 @@ export async function darBaixa(ator: UsuarioAtual | null, id: string, dataRealiz
       campo: "dataRealizacao",
       valorNovo: formatarDataBR(data),
     });
+    await rastrearServidor(tx, quem, "baixa_dada");
     return salvo;
   });
 }
@@ -302,6 +304,7 @@ export async function cancelarLancamento(ator: UsuarioAtual | null, id: string, 
       valorAnterior: atual.status,
       valorNovo: m,
     });
+    await rastrearServidor(tx, quem, "lancamento_cancelado");
     return salvo;
   });
 }

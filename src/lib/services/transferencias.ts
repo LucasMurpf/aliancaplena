@@ -8,6 +8,7 @@ import { formatarBRL, parseValorBR } from "@/lib/dinheiro";
 import { formatarDataBR } from "@/lib/datas";
 import { NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
 import { registrarLog } from "@/lib/log";
+import { rastrearServidor } from "./metricas";
 import { esquemaData, esquemaDataOpcional, esquemaId, esquemaMotivo, esquemaTextoOpcional, validar } from "./comum";
 
 export const MSG_TRANSFERENCIA_NAO_ENCONTRADA = "Transferência não encontrada";
@@ -79,6 +80,7 @@ export async function criarTransferencia(ator: UsuarioAtual | null, d: DadosTran
       acao: "CRIOU",
       valorNovo: `${formatarBRL(t.valor)} de ${origem.nome} para ${destino.nome} em ${formatarDataBR(t.data)}`,
     });
+    await rastrearServidor(tx, quem, "transferencia_criada");
     return t;
   });
 }

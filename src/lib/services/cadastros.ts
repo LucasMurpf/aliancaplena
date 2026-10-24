@@ -8,6 +8,7 @@ import { formatarBRL, parseValorBR } from "@/lib/dinheiro";
 import { formatarDataBR, parseDataBR } from "@/lib/datas";
 import { NaoEncontrado, RegraDeNegocio, Validacao } from "@/lib/erros";
 import { registrarLog, type Entidade } from "@/lib/log";
+import { rastrearServidor } from "./metricas";
 
 const MSG_CONTA_NAO_ENCONTRADA = "Conta não encontrada";
 const MSG_CATEGORIA_NAO_ENCONTRADA = "Categoria não encontrada";
@@ -284,6 +285,7 @@ export async function buscarMembros(
 export async function criarMembro(
   ator: UsuarioAtual | null,
   d: { nome: string; telefone?: string | null; dataNascimento?: string | null },
+  opcoes?: { origem?: "rapido" | "cadastro" },
 ): Promise<Membro> {
   const quem = exigir(ator, "membros.gerenciar");
   const v = validar(esquemaCriarMembro, d);
@@ -303,6 +305,7 @@ export async function criarMembro(
       acao: "CRIOU",
       valorNovo: m.nome,
     });
+    if (opcoes?.origem === "rapido") await rastrearServidor(tx, quem, "membro_cadastrado_rapido", { origem: "rapido" });
     return m;
   });
 }

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
 import { NaoEncontrado, RegraDeNegocio, Validacao } from "@/lib/erros";
 import { registrarLog } from "@/lib/log";
+import { rastrearServidor } from "./metricas";
 import { obterStorage, type Storage } from "@/lib/storage";
 import { MSG_CANCELADO, MSG_LANCAMENTO_NAO_ENCONTRADO } from "./lancamentos";
 
@@ -79,6 +80,7 @@ export async function anexarArquivo(
       valorNovo: nomeArquivo,
       usuarioId: quem.id,
     });
+    await rastrearServidor(tx, quem, "anexo_enviado", { tipo: arquivo.mime === "application/pdf" ? "pdf" : "imagem" });
     return anexo;
   });
 }
