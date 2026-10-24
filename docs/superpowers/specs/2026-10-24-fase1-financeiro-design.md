@@ -84,6 +84,8 @@ Relatórios e recibos em PDF, prestação de contas pública e calculadora de c�
 
 Papéis fixos no código. Um usuário pode ter **vários papéis**; suas permissões são a **união** das permissões dos papéis.
 
+> Exemplo comum em igreja pequena: o secretário/tesoureiro recebe **Tesoureiro + Patrimônio**. Na Fase 1 ele usa o financeiro normalmente; quando a Fase 5 chegar, passa a gerenciar o patrimônio sem nenhuma mudança no cadastro dele.
+
 | Permissão | Admin | Pastor | Tesoureiro | Eventos | Patrimônio |
 |---|:-:|:-:|:-:|:-:|:-:|
 | `financeiro.ver` (dashboard, lista, detalhe) | ✅ | ✅ | ✅ | ❌ | ❌ |
