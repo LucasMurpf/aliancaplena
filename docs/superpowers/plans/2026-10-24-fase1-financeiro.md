@@ -413,7 +413,7 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
   - nenhuma linha gravada contém as strings `"1234"` ou um nome de membro criado no teste (busca no JSON);
   - erro de banco simulado → retorna 0 sem lançar;
   - evento de 13 meses atrás é apagado por `limparEventosAntigos`, o de 11 meses fica;
-  - `criarLancamento` grava `EventoUso` `lancamento_salvo`? **Não** — o servidor grava só os eventos de negócio da lista (`baixa_dada`, `lancamento_cancelado`, `transferencia_criada`, `anexo_enviado`, `membro_cadastrado_rapido`); `lancamento_salvo` vem do cliente (tem duração). Testar `darBaixa` → 1 `baixa_dada`.
+  - `darBaixa` grava exatamente 1 `EventoUso` `baixa_dada` (o servidor só grava eventos de negócio: `baixa_dada`, `lancamento_cancelado`, `transferencia_criada`, `anexo_enviado`, `membro_cadastrado_rapido`; `lancamento_salvo` vem do cliente porque carrega a duração).
 - [ ] **Steps 2–4.** Views aplicadas via migração; teste de integração faz `SELECT * FROM vw_funil_lancamento` sem erro.
 - [ ] **Step 5:** `docs/metricas.md` em pt-BR: o que é coletado, o que nunca é, como desligar, como criar usuário somente-leitura (`CREATE ROLE bi_leitura LOGIN PASSWORD '…'; GRANT SELECT ON vw_uso_diario, vw_funil_lancamento, vw_erros TO bi_leitura;`) e conectar no Power BI.
 - [ ] **Step 6:** Commit `feat: métricas de uso com catálogo fechado e views para BI`.
