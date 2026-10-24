@@ -1,0 +1,8 @@
+// Esquema do banco. Os modelos são adicionados na Task 2.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
