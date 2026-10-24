@@ -15,5 +15,10 @@ export default defineConfig({
   },
   datasource: {
     url: process.env.DATABASE_URL ?? "",
+    // Banco temporário usado por `migrate dev` e `migrate diff --from-migrations`.
+    // Opcional: sem ele, `migrate dev` cria o próprio banco-sombra.
+    ...(process.env.SHADOW_DATABASE_URL
+      ? { shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL }
+      : {}),
   },
 });

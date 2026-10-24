@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/igreja
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/igreja_test
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/igreja_shadow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Criar bancos auxiliares
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE igreja;'
+          PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE igreja_test;'
+          PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE igreja_shadow;'
+      - name: Migrações em dia com o schema.prisma (shadow DB vem de SHADOW_DATABASE_URL via prisma.config.ts)
+        run: >-
+          npx prisma migrate diff
+          --from-migrations prisma/migrations
+          --to-schema prisma/schema.prisma
+          --exit-code
+      - run: npm test

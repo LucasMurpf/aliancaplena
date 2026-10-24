@@ -12,6 +12,7 @@ export default defineConfig({
     // Testes de integração compartilham o mesmo banco de testes: rodam um arquivo por vez.
     fileParallelism: false,
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
+    globalSetup: ["tests/global-setup.ts"],
     setupFiles: ["tests/setup.ts"],
   },
 });
