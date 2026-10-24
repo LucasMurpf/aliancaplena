@@ -9,7 +9,7 @@ export const CATALOGO = {
   lancamento_iniciado: ["tipo"],
   lancamento_salvo: ["tipo", "comAnexo", "salvarELancarOutro", "viaAtalho"],
   lancamento_abandonado: ["tipo"],
-  filtro_usado: ["filtro"],
+  filtro_usado: ["filtro", "filtros"],
   grafico_interagido: ["grafico"],
   erro_validacao: ["campo", "regra"],
   erro_inesperado: ["campo", "regra"],
@@ -26,6 +26,9 @@ export type PropsEvento = Record<string, string | number | boolean>;
 export const TAMANHO_MAX_STRING = 40;
 export const TAMANHO_MAX_TELA = 120;
 
+// Strings só em formato de código (sem espaços, sem "$"): impede texto digitado ou valores em R$.
+const VALOR_PERMITIDO = /^[A-Za-z0-9_.:,-]{1,40}$/;
+
 export function ehNomeEvento(nome: unknown): nome is NomeEvento {
   return typeof nome === "string" && Object.hasOwn(CATALOGO, nome);
 }
@@ -38,7 +41,7 @@ export function sanitizarEvento(nome: string, props: unknown): { nome: NomeEvent
     for (const chave of permitidas) {
       if (!Object.hasOwn(props, chave)) continue;
       const v = (props as Record<string, unknown>)[chave];
-      if (typeof v === "string" && v.length <= TAMANHO_MAX_STRING) saida[chave] = v;
+      if (typeof v === "string" && VALOR_PERMITIDO.test(v)) saida[chave] = v;
       else if (typeof v === "number" && Number.isFinite(v)) saida[chave] = v;
       else if (typeof v === "boolean") saida[chave] = v;
     }

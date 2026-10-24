@@ -32,11 +32,15 @@ const novoLanc = () =>
 describe("registrarEventos", () => {
   it("grava com usuário e papéis do ator, sanitizando", async () => {
     const n = await registrarEventos(admin, [
-      { nome: "lancamento_salvo", tela: "/lancamentos/clx9a8b7c6d5e4f3g2h1?x=1", dispositivo: "CELULAR", duracaoMs: 2000, props: { tipo: "ENTRADA", valor: "1234,56" }, sessaoId: "abc" },
+      { nome: "lancamento_salvo", tela: "/lancamentos/clx9a8b7c6d5e4f3g2h1?x=1", dispositivo: "CELULAR", duracaoMs: 2000, props: { tipo: "ENTRADA", valor: "1234,56" }, sessaoId: "123e4567-e89b-12d3-a456-426614174000" },
     ]);
     expect(n).toBe(1);
     const r = await prisma.eventoUso.findFirstOrThrow();
-    expect(r).toMatchObject({ usuarioId: admin.id, papeis: admin.papeis, tela: "/lancamentos/[id]", duracaoMs: 2000, dispositivo: "CELULAR", sessaoId: "abc", propriedades: { tipo: "ENTRADA" } });
+    expect(r).toMatchObject({ usuarioId: admin.id, papeis: admin.papeis, tela: "/lancamentos/[id]", duracaoMs: 2000, dispositivo: "CELULAR", sessaoId: "123e4567-e89b-12d3-a456-426614174000", propriedades: { tipo: "ENTRADA" } });
+  });
+  it("sessaoId que não é UUID vira null", async () => {
+    await registrarEventos(admin, [{ ...ev(), sessaoId: "João da Silva" }]);
+    expect((await prisma.eventoUso.findFirstOrThrow()).sessaoId).toBeNull();
   });
   it("sem ator não grava", async () => {
     expect(await registrarEventos(null, [ev()])).toBe(0);

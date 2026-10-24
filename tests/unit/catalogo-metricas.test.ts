@@ -17,6 +17,12 @@ describe("sanitizarEvento", () => {
     expect(r?.props).toEqual({ viaAtalho: false });
     expect(sanitizarEvento("lancamento_salvo", { tipo: "x".repeat(40) })?.props.tipo).toHaveLength(40);
   });
+  it("valores só em formato de código", () => {
+    expect(sanitizarEvento("lancamento_salvo", { tipo: "ENTRADA" })?.props).toEqual({ tipo: "ENTRADA" });
+    expect(sanitizarEvento("filtro_usado", { filtros: "periodo,categoria" })?.props).toEqual({ filtros: "periodo,categoria" });
+    expect(sanitizarEvento("lancamento_salvo", { tipo: "João Silva" })?.props).toEqual({});
+    expect(sanitizarEvento("lancamento_salvo", { tipo: "R$ 1.234,56" })?.props).toEqual({});
+  });
   it("props inválidas viram {}", () => {
     expect(sanitizarEvento("login", null)?.props).toEqual({});
     expect(sanitizarEvento("login", [1, 2])?.props).toEqual({});

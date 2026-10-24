@@ -7,6 +7,7 @@ import { ehNomeEvento, normalizarTela, sanitizarEvento, type NomeEvento } from "
 export const MAX_EVENTOS_POR_CHAMADA = 50;
 export const MAX_DURACAO_MS = 3_600_000;
 export const MESES_RETENCAO = 12;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type EventoRecebido = {
   nome: string;
@@ -42,7 +43,7 @@ export async function registrarEventos(ator: UsuarioAtual | null, eventos: Event
       linhas.push({
         usuarioId: ator.id,
         papeis: ator.papeis,
-        sessaoId: typeof e.sessaoId === "string" && e.sessaoId ? e.sessaoId.slice(0, 64) : null,
+        sessaoId: typeof e.sessaoId === "string" && UUID.test(e.sessaoId) ? e.sessaoId : null,
         dispositivo: e.dispositivo,
         evento: s.nome,
         tela: normalizarTela(e.tela),
