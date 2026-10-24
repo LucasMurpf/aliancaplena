@@ -22,7 +22,7 @@ Sistema web, responsivo (celular e computador), para a liderança e a tesouraria
 4. Toda alteração fica registrada no histórico (estilo GLPI) e ninguém consegue apagá-la.
 
 ### Fora do escopo da Fase 1
-Relatórios e recibos em PDF, prestação de contas pública e calculadora de cédulas (Fase 2); conciliação bancária e tela geral de logs (Fase 3); eventos (Fase 4); patrimônio (Fase 5); recorrência automática de lançamentos; login de membros; perfis de permissão personalizados.
+Relatórios e recibos em PDF, prestação de contas pública, indicadores para a liderança e calculadora de cédulas (Fase 2); conciliação bancária e tela geral de logs (Fase 3); eventos (Fase 4); patrimônio (Fase 5); módulo de EBD — Escola Bíblica Dominical, com ofertas integradas ao financeiro (Fase 6); envio de métricas consolidadas para um painel central entre igrejas; recorrência automática de lançamentos; login de membros; perfis de permissão personalizados.
 
 ---
 
@@ -62,6 +62,9 @@ Relatórios e recibos em PDF, prestação de contas pública e calculadora de c�
 | **Transferencia** | id, contaOrigemId, contaDestinoId, valor, data, descricao?, status (ATIVA \| CANCELADA), motivoCancelamento?, criadoPorId, criadoEm | Não conta como entrada/saída |
 | **Anexo** | id, lancamentoId, url (chave no storage), nomeArquivo, mimeType, tamanho, enviadoPorId, criadoEm | Arquivo fica fora do banco |
 | **Log** | id, dataHora, usuarioId?, entidade, entidadeId, acao, campo?, valorAnterior?, valorNovo? | Somente inserção. Ver seção 6 |
+| **EventoUso** | id, dataHora, usuarioId?, papeis, sessaoId?, dispositivo (CELULAR \| TABLET \| PC), evento, tela, duracaoMs?, propriedades (JSON) | Métricas de comportamento. Ver seção 6A |
+
+E em **Configuracao**: `metricasAtivas` (bool, padrão `true`).
 
 ### Regras de modelagem
 1. **Nada é apagado fisicamente.** Lançamentos e transferências são CANCELADOS (motivo obrigatório); cadastros (membro, conta, categoria, usuário) são INATIVADOS.
@@ -142,6 +145,20 @@ Regras:
 
 ---
 
+## 6A. Métricas de uso (comportamento)
+
+Objetivo: entender como as pessoas usam o app para decidir o que melhorar, simplificar e priorizar. **Mede comportamento, nunca dinheiro nem pessoas contribuintes.**
+
+- **Eventos da Fase 1:** `login`, `sessao_expirou`, `tela_aberta`, `menu_aberto`, `lancamento_iniciado`, `lancamento_salvo` (duracaoMs; props `tipo`, `comAnexo`, `salvarELancarOutro`, `viaAtalho`), `lancamento_abandonado`, `filtro_usado` (props: nomes dos filtros usados, nunca valores), `grafico_interagido`, `erro_validacao` (props `campo`, `regra`), `erro_inesperado`, e ações de negócio registradas pelos serviços (`baixa_dada`, `lancamento_cancelado`, `transferencia_criada`, `anexo_enviado`, `membro_cadastrado_rapido`).
+- **Proibido gravar:** valores em R$, nomes de membros, descrições, textos digitados, ids na rota. `propriedades` só aceita chaves de uma **lista fechada por evento**; o resto é descartado no servidor.
+- **Coleta não intrusiva:** o navegador envia em lote (a cada 10 s ou ao sair da página, via `sendBeacon`); falhas são ignoradas silenciosamente e nunca afetam o uso.
+- **Liga/desliga:** o Admin desliga em Configurações → Dados da igreja (`metricasAtivas`), com texto explicando o que é coletado. Padrão: ligado.
+- **Retenção:** eventos com mais de 12 meses são apagados automaticamente (única exceção à regra "nada se apaga", por não ser dado financeiro).
+- **Análise:** sem tela no app na Fase 1. Entregues views SQL `vw_uso_diario`, `vw_funil_lancamento`, `vw_erros` e instruções para criar um **usuário somente-leitura** no Postgres para Power BI.
+- **Futuro (fora da Fase 1):** com mais igrejas, envio opcional e consentido de **totais diários anônimos** para um painel central.
+
+---
+
 ## 7. Arquitetura e estrutura de pastas
 
 ```
@@ -219,3 +236,6 @@ aliancaplena/
 | Transparência para membros | Fase 2: link/PDF mensal sem nomes; sem login de membro |
 | Navegação | Menu lateral em todas as telas (gaveta no celular) |
 | Logs | Estilo GLPI desde a Fase 1; tela geral na Fase 3 |
+| Métricas de uso | Tabela própria `EventoUso`, sem valores/nomes, views para Power BI |
+| Anexos | Arquivo na nuvem; banco guarda a chave e metadados em colunas; acesso por link temporário |
+| EBD | Nova Fase 6, com spec própria |

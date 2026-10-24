@@ -27,6 +27,7 @@
 - Login: 5 falhas em 15 min para o mesmo e-mail bloqueiam novas tentativas; mensagem genérica "E-mail ou senha inválidos".
 - Navegação só por menu lateral (fixo ≥ `lg`, gaveta ☰ abaixo disso); botão flutuante "➕ Novo lançamento" apenas para `financeiro.lancar`.
 - Categorias seed: Entrada — Dízimo (nominal), Oferta, Missões, Doação, Rendimentos; Saída — Água, Luz, Aluguel, Combustível, Materiais, Manutenção, Missões (repasse).
+- Métricas de uso (`EventoUso`): nunca gravar R$, nomes, descrições, textos digitados ou ids na rota; `propriedades` só com chaves da lista fechada por evento; coleta nunca bloqueia nem quebra a tela.
 - Commits com mensagens em pt-BR no formato `tipo: descrição`.
 
 ## Review Focus
@@ -97,7 +98,7 @@ tests/unit/, tests/integration/, tests/e2e/
 - Test: `tests/integration/seed.test.ts`
 
 **Interfaces:**
-- Produces: modelos exatamente como spec §3 — `Configuracao, Usuario, UsuarioPapel, Membro, Conta, Categoria, Lancamento, Transferencia, Anexo, Log`; enums `Papel`, `TipoConta {CAIXA BANCO}`, `TipoMovimento {ENTRADA SAIDA}`, `StatusLancamento {PREVISTO REALIZADO CANCELADO}`, `StatusTransferencia {ATIVA CANCELADA}`. Ids `String @id @default(cuid())`. `semearCategorias(prisma): Promise<void>` exportada de `prisma/seed.ts` (idempotente por `nome + tipo`).
+- Produces: modelos exatamente como spec §3 — `Configuracao (com metricasAtivas Boolean @default(true)), Usuario, UsuarioPapel, Membro, Conta, Categoria, Lancamento, Transferencia, Anexo, Log, EventoUso`; enum `Dispositivo {CELULAR TABLET PC}`; `EventoUso.propriedades Json @default("{}")`, índice `EventoUso(evento, dataHora)`; enums `Papel`, `TipoConta {CAIXA BANCO}`, `TipoMovimento {ENTRADA SAIDA}`, `StatusLancamento {PREVISTO REALIZADO CANCELADO}`, `StatusTransferencia {ATIVA CANCELADA}`. Ids `String @id @default(cuid())`. `semearCategorias(prisma): Promise<void>` exportada de `prisma/seed.ts` (idempotente por `nome + tipo`).
 - Índices: `Lancamento(status, dataVencimento)`, `Lancamento(dataRealizacao)`, `Lancamento(contaId)`, `Log(entidade, entidadeId, dataHora)`, `Log(acao, entidadeId, dataHora)`; `@@unique([nome, tipo])` em Categoria; `Usuario.email @unique` (sempre minúsculo).
 - `Log.valorAnterior`/`valorNovo`: `String?` (texto legível já formatado no momento da gravação). `Log.usuarioId` opcional (falha de login sem usuário).
 
@@ -383,6 +384,42 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
 
 ---
 
+### Task 14A: Métricas de uso (coleta, proteção e views)
+**Modelo:** sonnet
+
+**Files:**
+- Create: `src/lib/metricas/catalogo.ts`, `src/lib/services/metricas.ts`, `src/app/api/uso/route.ts`, `src/lib/metricas/cliente.ts`, `prisma/sql/views-metricas.sql` (aplicado por uma migração SQL), `docs/metricas.md`
+- Test: `tests/unit/catalogo-metricas.test.ts`, `tests/integration/metricas.test.ts`
+
+**Interfaces:**
+- Consumes: `UsuarioAtual`, `obterUsuarioAtual`, `prisma`.
+- Produces:
+  - `CATALOGO: Record<NomeEvento, readonly string[]>` — chaves permitidas por evento (spec §6A); `type NomeEvento` = união dos nomes.
+  - `sanitizarEvento(nome: string, props: unknown): { nome: NomeEvento; props: Record<string, string | number | boolean> } | null` — `null` para evento desconhecido; descarta chaves fora do catálogo e valores que não sejam string ≤ 40 chars, número ou booleano.
+  - `normalizarTela(rota: string): string` — troca segmentos com cuid/números por `[id]` e remove query string.
+  - `registrarEventos(ator: UsuarioAtual | null, eventos: { nome: string; tela: string; duracaoMs?: number; props?: unknown; dispositivo: Dispositivo; sessaoId?: string }[]): Promise<number>` — não faz nada se `metricasAtivas=false`; máx. 50 eventos por chamada; retorna quantos gravou; **nunca lança** (captura e `console.warn`).
+  - `rastrearServidor(tx, ator, nome, props?)` — para eventos de negócio dentro dos serviços (chamada adicionada nas Tasks 10, 11, 13 e 9 em `criarMembro` com `props.origem`) — pode ser feita nesta tarefa editando esses serviços com testes.
+  - `limparEventosAntigos(): Promise<number>` — apaga `dataHora < agora − 12 meses`; chamada no máximo 1×/dia (oportunisticamente no `registrarEventos`, guardando a última execução em memória + checagem por data).
+  - `POST /api/uso` — corpo `{ eventos: [...] }`; sem sessão → 204 sem gravar; sempre responde 204.
+  - Cliente: `rastrear(nome: NomeEvento, props?, duracaoMs?)` — fila em memória, envio a cada 10 s e em `visibilitychange=hidden` com `navigator.sendBeacon`; `dispositivo` por `window.innerWidth` (< 768 CELULAR, < 1024 TABLET, senão PC); `sessaoId` gerado no login e guardado em `sessionStorage` (try/catch).
+  - Views: `vw_uso_diario(dia, evento, dispositivo, papeis, total)`, `vw_funil_lancamento(dia, iniciados, salvos, abandonados, mediana_duracao_ms)`, `vw_erros(dia, evento, campo, regra, total)`.
+
+- [ ] **Step 1: Testes**
+  - `sanitizarEvento('lancamento_salvo', { tipo: 'ENTRADA', comAnexo: true, valor: '1234,56', descricao: 'x' })` → props só `{ tipo, comAnexo }`;
+  - evento desconhecido → `null`; string de 41 chars descartada;
+  - `normalizarTela('/lancamentos/clx9a8b7c6d5e4f3g2h1?pagina=2')` → `'/lancamentos/[id]'`;
+  - `registrarEventos` com `metricasAtivas=false` → 0 gravados;
+  - 60 eventos → grava 50;
+  - nenhuma linha gravada contém as strings `"1234"` ou um nome de membro criado no teste (busca no JSON);
+  - erro de banco simulado → retorna 0 sem lançar;
+  - evento de 13 meses atrás é apagado por `limparEventosAntigos`, o de 11 meses fica;
+  - `criarLancamento` grava `EventoUso` `lancamento_salvo`? **Não** — o servidor grava só os eventos de negócio da lista (`baixa_dada`, `lancamento_cancelado`, `transferencia_criada`, `anexo_enviado`, `membro_cadastrado_rapido`); `lancamento_salvo` vem do cliente (tem duração). Testar `darBaixa` → 1 `baixa_dada`.
+- [ ] **Steps 2–4.** Views aplicadas via migração; teste de integração faz `SELECT * FROM vw_funil_lancamento` sem erro.
+- [ ] **Step 5:** `docs/metricas.md` em pt-BR: o que é coletado, o que nunca é, como desligar, como criar usuário somente-leitura (`CREATE ROLE bi_leitura LOGIN PASSWORD '…'; GRANT SELECT ON vw_uso_diario, vw_funil_lancamento, vw_erros TO bi_leitura;`) e conectar no Power BI.
+- [ ] **Step 6:** Commit `feat: métricas de uso com catálogo fechado e views para BI`.
+
+---
+
 ### Task 15: Casca do app — layout, menu lateral, login, instalação, proteção de rotas
 **Modelo:** sonnet
 
@@ -400,7 +437,7 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
   - `src/components/MonitorInatividade.tsx` (client, no layout): escuta `pointerdown`, `keydown`, `touchstart`, `scroll`; aos 14 min parado mostra modal "Sua sessão vai expirar em 1 minuto" com botão **Continuar** (chama a Server Action `renovarSessao()`, que reemite o cookie); aos 15 min chama a action `sair()` e vai para `/login?expirou=1`. Interação também chama `renovarSessao()` no máximo 1 vez por minuto (throttle), cobrindo quem digita um formulário longo sem enviar.
   - `/instalacao`: se `sistemaInstalado()` → redireciona para `/login`. Formulário com os campos de `instalar`; sucesso → grava cookie e vai para `/`.
   - `/login`: se não instalado → `/instalacao`. Sucesso → `/`.
-  - Layout `(sistema)`: menu fixo em `lg:`; abaixo disso, botão ☰ no topo abre gaveta com overlay (fecha ao tocar fora, ao escolher item e com Esc); mostra nome da igreja e do usuário, botão "Sair". Botão flutuante ➕ (canto inferior direito) se `financeiro.lancar`.
+  - Layout `(sistema)`: menu fixo em `lg:`; abaixo disso, botão ☰ no topo abre gaveta com overlay (fecha ao tocar fora, ao escolher item e com Esc); mostra nome da igreja e do usuário, botão "Sair". Botão flutuante ➕ (canto inferior direito) se `financeiro.lancar`. Rastreio: `tela_aberta` a cada mudança de rota (componente cliente no layout), `menu_aberto`, `login` após entrar, `sessao_expirou` no logout por inatividade.
 - [ ] **Step 4:** `npm test` PASS e `npm run build` sem erros.
 - [ ] **Step 5:** Commit `feat: layout com menu lateral, login e instalação`.
 
@@ -418,7 +455,7 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
 - [ ] **Step 1:** Página server component; mês via `?mes=2026-10` (padrão: mês atual em SP); setas ‹ › trocam o mês.
 - [ ] **Step 2:** Cards Entradas (verde), Saídas (vermelho), Resultado, Saldo atual (toque/clique expande `SaldoContas`).
 - [ ] **Step 3:** `ListaAlertas`: vencidos em vermelho, próximos em âmbar; item leva a `/lancamentos/[id]`; estado vazio "Nenhuma conta para os próximos 7 dias".
-- [ ] **Step 4:** `GraficoCategorias` (Recharts, client component): barras horizontais, top 6 + "Outras"; estado vazio "Sem movimentações neste mês". Ler a skill `dataviz` antes de escrever o gráfico.
+- [ ] **Step 4:** `GraficoCategorias` (Recharts, client component; `rastrear('grafico_interagido', { grafico: 'entradas' | 'saidas' })` no primeiro hover/toque): barras horizontais, top 6 + "Outras"; estado vazio "Sem movimentações neste mês". Ler a skill `dataviz` antes de escrever o gráfico.
 - [ ] **Step 5:** Verificar: `npm run build` OK; `npm run dev`, instalar, lançar 3 itens via serviço em script ou tela, conferir valores em 375 px e 1280 px de largura (screenshot no relatório da tarefa).
 - [ ] **Step 6:** Commit `feat: dashboard financeiro`.
 
@@ -437,7 +474,8 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
 - [ ] **Step 1: Lista** — filtros (período, tipo, categoria, conta, status, membro, busca) refletidos na URL; cartões abaixo de `md`, tabela a partir de `md`; rodapé fixo com "Entradas R$ X · Saídas R$ Y" do filtro; paginação 20.
 - [ ] **Step 2: Novo** — abas "Lançamento" e "Transferência". Lançamento: alternador grande Entrada/Saída (troca a lista de categorias); `CampoDinheiro` com `inputMode="decimal"`; categoria; conta; `SeletorMembro` aparece só se a categoria for nominal (busca com debounce 300 ms + "Cadastrar rápido" que abre mini-form nome/telefone); `CampoData` (input `date` nativo); Realizado/Previsto (padrão Realizado); descrição; `UploadAnexos` (`accept="image/*,application/pdf"`, `capture` não forçado para permitir galeria). Botões **Salvar** e **Salvar e lançar outro** (este mantém tipo, conta, categoria e data, limpa valor/membro/descrição/anexos e mostra "Lançamento salvo").
 - [ ] **Step 3: Detalhe** — dados, anexos (abre URL assinada), botões conforme status e permissão: Editar, Dar baixa (pede data, padrão hoje), Cancelar (modal com motivo obrigatório). `<AbaHistorico>` no fim. Transferência tem detalhe equivalente (cancelar + histórico).
-- [ ] **Step 4:** Server Actions capturam `ErroApp` e devolvem `{ erro: string }`; erros inesperados → "Algo deu errado, tente novamente" + `console.error`.
+- [ ] **Step 4: Rastreio** — `lancamento_iniciado` ao abrir o form (guarda o instante); `lancamento_salvo` com `duracaoMs` e props `tipo, comAnexo, salvarELancarOutro, viaAtalho`; `lancamento_abandonado` ao sair com campos preenchidos sem salvar; `filtro_usado` com `{ filtros: 'periodo,categoria' }` (nomes, nunca valores); `erro_validacao` com `{ campo, regra }` mapeados do erro do serviço. `ErroApp` ganha campos opcionais `campo` e `regra` (atualizar Task 3/10 se já implementadas, com teste).
+- [ ] **Step 4b:** Server Actions capturam `ErroApp` e devolvem `{ erro: string }`; erros inesperados → "Algo deu errado, tente novamente" + `console.error`.
 - [ ] **Step 5:** Verificar com `npm run build` e manualmente no `dev` em 375 px: criar dízimo para membro, criar previsto, dar baixa, cancelar, ver histórico.
 - [ ] **Step 6:** Commit `feat: telas de lançamentos e transferências`.
 
@@ -450,7 +488,7 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
 - Create: `src/app/(sistema)/membros/{page,novo/page,[id]/page}.tsx`, `src/app/(sistema)/configuracoes/{contas,categorias,usuarios,igreja}/…` (lista + form + detalhe com `<AbaHistorico>`), `actions.ts` por pasta; `src/lib/services/configuracao.ts` com `obterConfiguracao()` e `atualizarConfiguracao(ator, { nomeIgreja; logoUrl?; cnpj? })` (`admin`, com log) + teste em `tests/integration/configuracao.test.ts`.
 
 - [ ] **Step 1:** Teste de `atualizarConfiguracao` (Tesoureiro → `NaoAutorizado`; Admin altera nome → log `ALTEROU`). FAIL → implementar → PASS.
-- [ ] **Step 2:** Telas seguindo o padrão da Task 17 (cartões no celular, tabela no PC). Usuários: caixas de seleção dos 5 papéis com rótulos "Administrador, Pastor, Tesoureiro, Responsável por Eventos, Responsável pelo Patrimônio"; botões ativar/inativar e redefinir senha. Categorias: tipo só editável na criação. Itens inativos aparecem acinzentados com filtro "mostrar inativos".
+- [ ] **Step 2:** Telas seguindo o padrão da Task 17 (cartões no celular, tabela no PC). Usuários: caixas de seleção dos 5 papéis com rótulos "Administrador, Pastor, Tesoureiro, Responsável por Eventos, Responsável pelo Patrimônio"; botões ativar/inativar e redefinir senha. Categorias: tipo só editável na criação. Itens inativos aparecem acinzentados com filtro "mostrar inativos". Em Dados da igreja: interruptor "Coletar métricas de uso" com o texto explicativo de `docs/metricas.md` (resumo) — `atualizarConfiguracao` aceita `metricasAtivas` e loga a mudança.
 - [ ] **Step 3:** `npm run build` OK; teste manual em 375 px.
 - [ ] **Step 4:** Commit `feat: telas de membros e configurações`.
 
@@ -488,4 +526,5 @@ test('parseDataBR', () => expect(parseDataBR('31/10/2026').toISOString()).toBe('
 | §5 Anexos | 13, 17 |
 | §6 Histórico | 5, 14, 17, 18 |
 | §7 Erros, segurança, backup | 3, 6, 7, 17, 19 |
+| §6A Métricas de uso | 2, 14A, 15–18 |
 | §8 Testes | todas; E2E na 19 |
