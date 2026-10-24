@@ -54,6 +54,14 @@ export function criarColetor(o: OpcoesColetor) {
         }
       }
     },
+    /** Esvazia a fila e devolve os lotes (para envio aguardável). */
+    retirarLotes(): EventoFila[][] {
+      const todos = fila;
+      fila = [];
+      const lotes: EventoFila[][] = [];
+      for (let i = 0; i < todos.length; i += TAMANHO_LOTE) lotes.push(todos.slice(i, i + TAMANHO_LOTE));
+      return lotes;
+    },
     tamanho: () => fila.length,
   };
 }
@@ -81,6 +89,38 @@ export function enviarLote(lote: EventoFila[], t: Transporte, beacon: boolean): 
   } catch {
     // ignora
   }
+}
+
+/** Envio aguardável (fetch keepalive); se falhar, tenta sendBeacon. Nunca lança. */
+export async function enviarLoteAguardando(lote: EventoFila[], t: Transporte): Promise<void> {
+  const corpo = JSON.stringify({ eventos: lote });
+  try {
+    if (t.fetch) {
+      await t.fetch(URL_USO, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: corpo,
+        keepalive: true,
+        credentials: "same-origin",
+      });
+      return;
+    }
+  } catch {
+    // cai para o beacon
+  }
+  try {
+    t.sendBeacon?.(URL_USO, new Blob([corpo], { type: "application/json" }));
+  } catch {
+    // ignora
+  }
+}
+
+/** Envia agora tudo o que está na fila e espera terminar (usar antes de apagar a sessão). */
+export async function descarregarMetricas(): Promise<void> {
+  const c = obterColetor();
+  if (!c) return;
+  const transporte: Transporte = { fetch: window.fetch.bind(window), sendBeacon: navigator.sendBeacon?.bind(navigator) };
+  for (const lote of c.retirarLotes()) await enviarLoteAguardando(lote, transporte);
 }
 
 const CHAVE_SESSAO = "metricas.sessaoId";
