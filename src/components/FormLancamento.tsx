@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
-  anexarArquivoAction,
+  confirmarAnexoAction,
   editarLancamentoAction,
+  prepararAnexoAction,
   salvarLancamentoAction,
 } from "@/app/(sistema)/lancamentos/actions";
+import { enviarUmAnexo } from "@/lib/envio-anexo";
 import {
   aposSalvarELancarOutro,
   destinoDoErro,
@@ -111,11 +113,9 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, ed
       }
       const id = r.id;
       // O lançamento já está salvo: qualquer falha de anexo (inclusive exceção) é só um aviso.
-      const falhas = await enviarAnexos(anexos, (arquivo) => {
-        const fd = new FormData();
-        fd.append("arquivo", arquivo);
-        return anexarArquivoAction(id, fd);
-      });
+      const falhas = await enviarAnexos(anexos, (arquivo) =>
+        enviarUmAnexo(id, arquivo, { preparar: prepararAnexoAction, confirmar: confirmarAnexoAction }),
+      );
       salvo.current = true;
       if (novo) {
         rastrear(

@@ -2,11 +2,10 @@
 
 // Server Actions das telas de lançamentos e transferências. Cada uma obtém o ator da sessão
 // (R16) e devolve `{ ok, ... }` ou `{ erro, campo?, regra? }`; os serviços decidem as permissões.
-import { Validacao } from "@/lib/erros";
 import { type ResultadoAcao } from "@/lib/acoes";
 import { executar } from "@/lib/executar-acao";
 import { buscarMembros, criarMembro } from "@/lib/services/cadastros";
-import { urlDoAnexo, anexarArquivo, MSG_TAMANHO, TAMANHO_MAXIMO } from "@/lib/services/anexos";
+import { confirmarAnexo, prepararAnexo, urlDoAnexo } from "@/lib/services/anexos";
 import {
   cancelarLancamento,
   criarLancamento,
@@ -38,15 +37,18 @@ export async function cancelarLancamentoAction(id: string, motivo: string): Prom
   });
 }
 
-/** Um arquivo por chamada (campo "arquivo"): mantém cada requisição abaixo do limite de corpo. */
-export async function anexarArquivoAction(lancamentoId: string, dados: FormData): Promise<ResultadoAcao> {
+/** 1º passo do anexo: devolve a URL assinada para o navegador enviar o arquivo direto ao storage. */
+export async function prepararAnexoAction(
+  lancamentoId: string,
+  arquivo: { nome: string; mime: string; tamanho: number },
+): Promise<ResultadoAcao<{ chave: string; url: string }>> {
+  return executar((ator) => prepararAnexo(ator, lancamentoId, arquivo));
+}
+
+/** 2º passo, depois do PUT: confere o arquivo no storage e grava o anexo. */
+export async function confirmarAnexoAction(lancamentoId: string, chave: string, nome: string): Promise<ResultadoAcao> {
   return executar(async (ator) => {
-    const arquivo = dados.get("arquivo");
-    if (!(arquivo instanceof File)) throw new Validacao("Arquivo não recebido", { campo: "anexo", regra: "obrigatorio" });
-    // Confere o tamanho ANTES de ler o conteúdo para a memória.
-    if (arquivo.size > TAMANHO_MAXIMO) throw new Validacao(MSG_TAMANHO, { campo: "anexo", regra: "tamanho" });
-    const buffer = Buffer.from(await arquivo.arrayBuffer());
-    await anexarArquivo(ator, lancamentoId, { nome: arquivo.name, mime: arquivo.type, dados: buffer });
+    await confirmarAnexo(ator, lancamentoId, chave, nome);
     return {};
   });
 }

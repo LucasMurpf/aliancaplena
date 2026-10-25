@@ -4,11 +4,11 @@ import type { UsuarioAtual } from "@/lib/auth";
 import { instalar } from "@/lib/services/instalacao";
 import { criarLancamento, darBaixa, cancelarLancamento } from "@/lib/services/lancamentos";
 import { criarTransferencia } from "@/lib/services/transferencias";
-import { anexarArquivo } from "@/lib/services/anexos";
 import { criarMembro } from "@/lib/services/cadastros";
 import { storageMemoria } from "@/lib/storage";
 import { limparEventosAntigos, registrarEventos } from "@/lib/services/metricas";
 import { resetarBanco } from "../helpers/db";
+import { enviarAnexoTeste } from "../helpers/anexos";
 
 let admin: UsuarioAtual;
 let caixaId: string;
@@ -109,7 +109,7 @@ describe("eventos de negócio nos serviços", () => {
   });
   it("anexo grava anexo_enviado com tipo", async () => {
     const l = await novoLanc();
-    await anexarArquivo(admin, l.id, { nome: "a.pdf", mime: "application/pdf", dados: Buffer.from("%PDF-1.4\n") }, storageMemoria());
+    await enviarAnexoTeste(admin, l.id, { nome: "a.pdf", mime: "application/pdf", dados: Buffer.from("%PDF-1.4\n") }, storageMemoria());
     const e = await prisma.eventoUso.findFirstOrThrow();
     expect(e.evento).toBe("anexo_enviado");
     expect(e.propriedades).toEqual({ tipo: "pdf" });

@@ -27,7 +27,7 @@ Todas estão em `.env.example`:
 | `DATABASE_URL` | Conexão PostgreSQL do app. |
 | `DATABASE_URL_TEST` | Banco separado usado pelos testes. **Os testes apagam todas as tabelas dele.** |
 | `SESSION_SECRET` | Segredo que assina o login. No mínimo 32 caracteres aleatórios. |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | Cloudflare R2, onde ficam os comprovantes. |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | Cloudflare R2, onde ficam os comprovantes. Obrigatórias em produção: sem as quatro, o envio de comprovantes falha com "Armazenamento de anexos não configurado". Em desenvolvimento, sem elas os comprovantes ficam só na memória do servidor (somem ao reiniciar) e o navegador os envia para a rota local `/api/anexos-memoria`, que não existe em produção. |
 | `TZ` | Fuso horário (`America/Sao_Paulo`). |
 
 ### Banco de dados e migrações
@@ -58,8 +58,20 @@ Cada igreja tem o próprio banco, bucket e site. Todos os serviços abaixo têm 
    ```
 3. **Armazenamento de comprovantes (Cloudflare R2).** No painel da Cloudflare, abra *R2* e crie um bucket (privado). Anote o ID da conta. Em *Gerenciar tokens de API do R2*, crie um token com permissão de leitura e escrita nesse bucket e anote a chave de acesso e a chave secreta. Eles viram `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID` e `R2_SECRET_ACCESS_KEY`.
 4. **Hospedagem (Vercel).** Importe este repositório em [vercel.com](https://vercel.com) como novo projeto e cadastre as variáveis de ambiente do `.env.example`: `DATABASE_URL`, `SESSION_SECRET` (gere um valor aleatório, por exemplo com `openssl rand -base64 48`), as quatro variáveis `R2_*` e `TZ=America/Sao_Paulo`. Não cadastre `DATABASE_URL_TEST` em produção. Faça o deploy.
-5. **Primeiro acesso.** Abra o endereço do site. Enquanto não houver usuários, o app leva à tela **/instalacao**: informe o nome da igreja, a primeira conta (caixa ou banco) com o saldo inicial e os dados do administrador. Depois disso a tela de instalação deixa de funcionar e o acesso passa a ser pelo login.
-6. Cadastre os demais usuários em *Configurações > Usuários* e confira as categorias em *Configurações > Categorias*.
+5. **Permitir o envio de comprovantes pelo site (CORS do R2).** O navegador envia cada comprovante direto para o R2 (até 10 MB; o arquivo não passa pela Vercel, que limita requisições a 4,5 MB). Para isso o bucket precisa aceitar o endereço do site. No painel da Cloudflare, abra *R2 > (seu bucket) > Configurações > Política de CORS*, clique em *Adicionar política de CORS* e cole o JSON abaixo, trocando o endereço pelo do seu site (sem barra no fim):
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://sua-igreja.vercel.app"],
+       "AllowedMethods": ["PUT", "GET"],
+       "AllowedHeaders": ["Content-Type"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+   Se usar um domínio próprio, inclua os dois endereços na lista `AllowedOrigins`. Sem essa política, salvar um lançamento funciona, mas todo comprovante mostra o aviso "não foi possível enviar".
+6. **Primeiro acesso.** Abra o endereço do site. Enquanto não houver usuários, o app leva à tela **/instalacao**: informe o nome da igreja, a primeira conta (caixa ou banco) com o saldo inicial e os dados do administrador. Depois disso a tela de instalação deixa de funcionar e o acesso passa a ser pelo login.
+7. Cadastre os demais usuários em *Configurações > Usuários* e confira as categorias em *Configurações > Categorias*.
 
 ## Backup manual
 

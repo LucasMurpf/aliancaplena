@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { anexarArquivoAction } from "@/app/(sistema)/lancamentos/actions";
+import { confirmarAnexoAction, prepararAnexoAction } from "@/app/(sistema)/lancamentos/actions";
+import { enviarUmAnexo } from "@/lib/envio-anexo";
 import { enviarAnexos } from "@/lib/form-lancamento";
 import { Alerta } from "./ui/Alerta";
 import { Botao } from "./ui/Botao";
@@ -19,11 +20,9 @@ export function AdicionarAnexos({ lancamentoId }: { lancamentoId: string }) {
     setEnviando(true);
     setErros([]);
     try {
-      const falhas = await enviarAnexos(arquivos, (arquivo) => {
-        const fd = new FormData();
-        fd.append("arquivo", arquivo);
-        return anexarArquivoAction(lancamentoId, fd);
-      });
+      const falhas = await enviarAnexos(arquivos, (arquivo) =>
+        enviarUmAnexo(lancamentoId, arquivo, { preparar: prepararAnexoAction, confirmar: confirmarAnexoAction }),
+      );
       setArquivos(arquivos.filter((a) => falhas.includes(a.name)));
       setErros(falhas.map((n) => `${n}: não foi possível enviar. Confira o tipo (foto ou PDF), o tamanho (até 10 MB) e a conexão.`));
       router.refresh();
