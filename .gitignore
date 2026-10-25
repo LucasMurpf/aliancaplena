@@ -44,3 +44,7 @@ next-env.d.ts
 .superpowers/
 .env
 !.env.example
+
+# playwright
+/test-results/
+/playwright-report/
