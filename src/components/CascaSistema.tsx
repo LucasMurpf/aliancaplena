@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import type { ItemMenu } from "@/lib/menu";
 import { rastrear } from "@/lib/metricas/cliente";
@@ -20,6 +21,9 @@ type Props = {
 /** Menu fixo em telas grandes; gaveta com overlay (☰) nas pequenas. */
 export function CascaSistema({ itens, nomeIgreja, logoUrl, nomeUsuario, podeLancar, children }: Props) {
   const [aberto, setAberto] = useState(false);
+  const pathname = usePathname();
+  // O atalho ➕ ficaria sobre os botões de Salvar nas telas de formulário.
+  const emFormulario = pathname.startsWith("/lancamentos/novo") || /^\/lancamentos\/[^/]+\/editar/.test(pathname);
 
   useEffect(() => {
     if (!aberto) return;
@@ -76,7 +80,7 @@ export function CascaSistema({ itens, nomeIgreja, logoUrl, nomeUsuario, podeLanc
         <main className="flex-1 px-4 pb-28 pt-6 sm:px-6 lg:px-8">{children}</main>
       </div>
 
-      {podeLancar ? <BotaoNovoLancamento /> : null}
+      {podeLancar && !emFormulario ? <BotaoNovoLancamento /> : null}
     </div>
   );
 }
