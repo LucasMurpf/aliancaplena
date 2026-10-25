@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { exigir, hashSenha, type UsuarioAtual } from "@/lib/auth";
 import { NaoEncontrado, RegraDeNegocio, Validacao } from "@/lib/erros";
 import { registrarLog } from "@/lib/log";
-import { esquemaEmail, esquemaSenha } from "@/lib/validacao";
+import { esquemaEmail, esquemaSenha, validarComZod } from "@/lib/validacao";
 
 // Chave do advisory lock que serializa mudanças de papel/situação (evita dois admins se rebaixando ao mesmo tempo).
 const LOCK_USUARIOS = 4243;
@@ -38,11 +38,6 @@ const esquemaAtualizar = z.object({
 
 export type UsuarioListado = UsuarioAtual & { ativo: boolean };
 
-function validar<T>(esquema: z.ZodType<T>, dados: unknown): T {
-  const r = esquema.safeParse(dados);
-  if (!r.success) throw new Validacao(r.error.issues[0]?.message ?? "Dados inválidos.");
-  return r.data;
-}
 
 const textoPapeis = (l: Papel[]) => [...l].sort().join(", ");
 
@@ -89,7 +84,7 @@ export async function criarUsuario(
   d: { nome: string; email: string; senha: string; papeis: Papel[] },
 ): Promise<UsuarioAtual> {
   const quem = exigir(ator, "admin");
-  const v = validar(esquemaCriar, d);
+  const v = validarComZod(esquemaCriar, d);
   const senhaHash = await hashSenha(v.senha);
 
   try {
@@ -123,7 +118,7 @@ export async function atualizarUsuario(
   d: { nome?: string; email?: string; papeis?: Papel[] },
 ): Promise<void> {
   const quem = exigir(ator, "admin");
-  const v = validar(esquemaAtualizar, d);
+  const v = validarComZod(esquemaAtualizar, d);
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -200,7 +195,7 @@ export async function definirAtivo(ator: UsuarioAtual | null, id: string, ativo:
 
 export async function redefinirSenha(ator: UsuarioAtual | null, id: string, novaSenha: string): Promise<void> {
   const quem = exigir(ator, "admin");
-  const senha = validar(esquemaSenha, novaSenha);
+  const senha = validarComZod(esquemaSenha, novaSenha);
   const senhaHash = await hashSenha(senha);
 
   await prisma.$transaction(async (tx) => {

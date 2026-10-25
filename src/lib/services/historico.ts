@@ -35,6 +35,10 @@ export const ROTULO_CAMPO: Record<string, string> = {
   telefone: "Telefone",
   dataNascimento: "Nascimento",
   ativo: "Ativo",
+  nomeIgreja: "Nome da igreja",
+  logoUrl: "Logo",
+  cnpj: "CNPJ",
+  metricasAtivas: "Coleta de métricas de uso",
 };
 
 const LIMITE_HISTORICO = 200;

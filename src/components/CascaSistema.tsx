@@ -22,8 +22,12 @@ type Props = {
 export function CascaSistema({ itens, nomeIgreja, logoUrl, nomeUsuario, podeLancar, children }: Props) {
   const [aberto, setAberto] = useState(false);
   const pathname = usePathname();
-  // O atalho ➕ ficaria sobre os botões de Salvar nas telas de formulário.
-  const emFormulario = pathname.startsWith("/lancamentos/novo") || /^\/lancamentos\/[^/]+\/editar/.test(pathname);
+  // O atalho ➕ ficaria sobre os botões de Salvar nas telas de formulário (lançamentos, membros e configurações).
+  const emFormulario =
+    pathname.startsWith("/lancamentos/novo") ||
+    /^\/lancamentos\/[^/]+\/editar/.test(pathname) ||
+    /^\/membros\/(novo|[^/]+)$/.test(pathname) ||
+    pathname.startsWith("/configuracoes/");
 
   useEffect(() => {
     if (!aberto) return;

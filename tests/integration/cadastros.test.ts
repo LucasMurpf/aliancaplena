@@ -15,6 +15,7 @@ import {
   definirMembroAtivo,
   listarCategorias,
   listarContas,
+  listarMembros,
   obterMembro,
 } from "@/lib/services/cadastros";
 import { instalar } from "@/lib/services/instalacao";
@@ -220,5 +221,40 @@ describe("membros", () => {
     const l = (await logs(m.id)).filter((x) => x.campo === "dataNascimento");
     expect(l[0]).toMatchObject({ valorAnterior: "02/01/2000", valorNovo: "03/04/2001" });
     await expect(atualizarMembro(pastor, "x", { nome: "B" })).rejects.toThrow("Membro não encontrado");
+  });
+});
+
+describe("listarMembros", () => {
+  it("exige membros.ver_nomes", async () => {
+    await expect(listarMembros(eventos)).rejects.toBeInstanceOf(NaoAutorizado);
+    await expect(listarMembros(null)).rejects.toBeInstanceOf(NaoAutorizado);
+    await expect(listarMembros(pastor)).resolves.toEqual({ itens: [], total: 0 });
+  });
+
+  it("ordena por nome, pagina de 30 em 30 e esconde inativos por padrão", async () => {
+    for (let i = 1; i <= 35; i++) {
+      await criarMembro(tesoureiro, { nome: `Membro ${String(i).padStart(2, "0")}` });
+    }
+    const inativo = await criarMembro(tesoureiro, { nome: "Zeca Inativo" });
+    await definirMembroAtivo(tesoureiro, inativo.id, false);
+
+    const p1 = await listarMembros(pastor);
+    expect(p1.total).toBe(35);
+    expect(p1.itens).toHaveLength(30);
+    expect(p1.itens[0].nome).toBe("Membro 01");
+
+    const p2 = await listarMembros(pastor, { pagina: 2 });
+    expect(p2.itens.map((m) => m.nome)).toEqual(["Membro 31", "Membro 32", "Membro 33", "Membro 34", "Membro 35"]);
+
+    const comInativos = await listarMembros(pastor, { pagina: 2, incluirInativos: true });
+    expect(comInativos.total).toBe(36);
+    expect(comInativos.itens.map((m) => m.nome)).toContain("Zeca Inativo");
+  });
+
+  it("busca parte do nome sem diferenciar acento nem caixa", async () => {
+    await criarMembro(tesoureiro, { nome: "João da Silva" });
+    await criarMembro(tesoureiro, { nome: "Maria Joana" });
+    const r = await listarMembros(pastor, { busca: "JOAO" });
+    expect(r.itens.map((m) => m.nome)).toEqual(["João da Silva"]);
   });
 });

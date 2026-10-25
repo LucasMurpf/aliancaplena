@@ -2,9 +2,9 @@
 
 // Server Actions das telas de lançamentos e transferências. Cada uma obtém o ator da sessão
 // (R16) e devolve `{ ok, ... }` ou `{ erro, campo?, regra? }`; os serviços decidem as permissões.
-import { obterUsuarioAtual, type UsuarioAtual } from "@/lib/auth";
 import { Validacao } from "@/lib/erros";
-import { falhaDeErro, type ResultadoAcao } from "@/lib/acoes";
+import { type ResultadoAcao } from "@/lib/acoes";
+import { executar } from "@/lib/executar-acao";
 import { buscarMembros, criarMembro } from "@/lib/services/cadastros";
 import { urlDoAnexo, anexarArquivo, MSG_TAMANHO, TAMANHO_MAXIMO } from "@/lib/services/anexos";
 import {
@@ -15,18 +15,6 @@ import {
   type DadosLancamento,
 } from "@/lib/services/lancamentos";
 import { cancelarTransferencia, criarTransferencia, type DadosTransferencia } from "@/lib/services/transferencias";
-
-const MSG_SESSAO = "Sua sessão expirou. Entre novamente.";
-
-async function executar<T extends object>(fn: (ator: UsuarioAtual) => Promise<T>): Promise<ResultadoAcao<T>> {
-  try {
-    const ator = await obterUsuarioAtual();
-    if (!ator) return { erro: MSG_SESSAO };
-    return { ok: true, ...(await fn(ator)) };
-  } catch (e) {
-    return falhaDeErro(e);
-  }
-}
 
 export async function salvarLancamentoAction(dados: DadosLancamento): Promise<ResultadoAcao<{ id: string }>> {
   return executar(async (ator) => ({ id: (await criarLancamento(ator, dados)).id }));

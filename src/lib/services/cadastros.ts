@@ -8,6 +8,7 @@ import { formatarBRL, parseValorBR } from "@/lib/dinheiro";
 import { formatarDataBR, parseDataBR } from "@/lib/datas";
 import { NaoEncontrado, RegraDeNegocio, Validacao } from "@/lib/erros";
 import { registrarLog, type Entidade } from "@/lib/log";
+import { validarComZod } from "@/lib/validacao";
 import { rastrearServidor } from "./metricas";
 
 const MSG_CONTA_NAO_ENCONTRADA = "Conta não encontrada";
@@ -48,11 +49,6 @@ const esquemaCriarMembro = z.object({
 });
 const esquemaAtualizarMembro = esquemaCriarMembro;
 
-function validar<T>(esquema: z.ZodType<T>, dados: unknown): T {
-  const r = esquema.safeParse(dados);
-  if (!r.success) throw new Validacao(r.error.issues[0]?.message ?? "Dados inválidos.");
-  return r.data;
-}
 
 const simNao = (b: boolean) => (b ? "Sim" : "Não");
 
@@ -98,7 +94,7 @@ export async function criarConta(
   d: { nome: string; tipo: TipoConta; saldoInicial: string },
 ): Promise<Conta> {
   const quem = exigir(ator, "cadastros.gerenciar");
-  const v = validar(esquemaCriarConta, d);
+  const v = validarComZod(esquemaCriarConta, d);
   return prisma.$transaction(async (tx) => {
     const c = await tx.conta.create({ data: v });
     await registrarLog(tx, {
@@ -118,7 +114,7 @@ export async function atualizarConta(
   d: { nome?: string; tipo?: TipoConta; saldoInicial?: string },
 ): Promise<void> {
   const quem = exigir(ator, "cadastros.gerenciar");
-  const v = validar(esquemaAtualizarConta, d);
+  const v = validarComZod(esquemaAtualizarConta, d);
   await prisma.$transaction(async (tx) => {
     const atual = await tx.conta.findUnique({ where: { id } });
     if (!atual) throw new NaoEncontrado(MSG_CONTA_NAO_ENCONTRADA);
@@ -182,7 +178,7 @@ export async function criarCategoria(
   d: { nome: string; tipo: TipoMovimento; nominal: boolean },
 ): Promise<Categoria> {
   const quem = exigir(ator, "cadastros.gerenciar");
-  const v = validar(esquemaCriarCategoria, d);
+  const v = validarComZod(esquemaCriarCategoria, d);
   try {
     return await prisma.$transaction(async (tx) => {
       const existente = await tx.categoria.findUnique({
@@ -211,7 +207,7 @@ export async function atualizarCategoria(
   d: { nome?: string; nominal?: boolean; tipo?: TipoMovimento },
 ): Promise<void> {
   const quem = exigir(ator, "cadastros.gerenciar");
-  const v = validar(esquemaAtualizarCategoria, d);
+  const v = validarComZod(esquemaAtualizarCategoria, d);
   try {
     await prisma.$transaction(async (tx) => {
       const atual = await tx.categoria.findUnique({ where: { id } });
@@ -282,6 +278,32 @@ export async function buscarMembros(
   });
 }
 
+export const ITENS_POR_PAGINA_MEMBROS = 30;
+
+/** Lista paginada (30 por página) em ordem de nome. `busca` casa parte do nome, sem acento. */
+export async function listarMembros(
+  ator: UsuarioAtual | null,
+  opcoes: { incluirInativos?: boolean; pagina?: number; busca?: string } = {},
+): Promise<{ itens: Membro[]; total: number }> {
+  exigir(ator, "membros.ver_nomes");
+  const pagina = Math.max(1, Math.floor(opcoes.pagina ?? 1));
+  const termo = normalizarBusca(opcoes.busca ?? "");
+  const where = {
+    ...(opcoes.incluirInativos ? {} : { ativo: true }),
+    ...(termo ? { nomeBusca: { contains: termo } } : {}),
+  };
+  const [itens, total] = await Promise.all([
+    prisma.membro.findMany({
+      where,
+      orderBy: { nome: "asc" },
+      skip: (pagina - 1) * ITENS_POR_PAGINA_MEMBROS,
+      take: ITENS_POR_PAGINA_MEMBROS,
+    }),
+    prisma.membro.count({ where }),
+  ]);
+  return { itens, total };
+}
+
 export async function obterMembro(ator: UsuarioAtual | null, id: string): Promise<Membro> {
   exigir(ator, "membros.ver_nomes");
   const m = await prisma.membro.findUnique({ where: { id } });
@@ -295,7 +317,7 @@ export async function criarMembro(
   opcoes?: { origem?: "rapido" | "cadastro" },
 ): Promise<Membro> {
   const quem = exigir(ator, "membros.gerenciar");
-  const v = validar(esquemaCriarMembro, d);
+  const v = validarComZod(esquemaCriarMembro, d);
   return prisma.$transaction(async (tx) => {
     const m = await tx.membro.create({
       data: {
@@ -324,7 +346,7 @@ export async function atualizarMembro(
   d: { nome?: string; telefone?: string | null; dataNascimento?: string | null },
 ): Promise<void> {
   const quem = exigir(ator, "membros.gerenciar");
-  const v = validar(esquemaAtualizarMembro.partial(), d);
+  const v = validarComZod(esquemaAtualizarMembro.partial(), d);
   await prisma.$transaction(async (tx) => {
     const atual = await tx.membro.findUnique({ where: { id } });
     if (!atual) throw new NaoEncontrado(MSG_MEMBRO_NAO_ENCONTRADO);

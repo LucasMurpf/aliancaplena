@@ -11,7 +11,7 @@ type Props = {
   descricao?: string;
   /** Texto do campo: "Motivo do cancelamento" ou "Data da baixa". */
   rotuloCampo: string;
-  tipoCampo?: "text" | "date";
+  tipoCampo?: "text" | "date" | "senha";
   valorInicial?: string;
   textoConfirmar: string;
   perigo?: boolean;
@@ -19,7 +19,7 @@ type Props = {
   aoFechar: () => void;
 };
 
-/** Diálogo nativo (<dialog>) com um campo e confirmação: usado em "Cancelar" e "Dar baixa". */
+/** Diálogo nativo (<dialog>) com um campo e confirmação: usado em "Cancelar", "Dar baixa" e "Redefinir senha". */
 export function ModalCampo({ aberto, titulo, descricao, rotuloCampo, tipoCampo = "text", valorInicial = "", textoConfirmar, perigo, aoConfirmar, aoFechar }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const uid = useId();
@@ -67,7 +67,18 @@ export function ModalCampo({ aberto, titulo, descricao, rotuloCampo, tipoCampo =
         <label htmlFor={idCampo} className="text-sm font-medium text-slate-800">
           {rotuloCampo}
         </label>
-        {tipoCampo === "date" ? (
+        {tipoCampo === "senha" ? (
+          <input
+            id={idCampo}
+            type="password"
+            autoComplete="new-password"
+            aria-invalid={erro ? true : undefined}
+            aria-describedby={erro ? idErro : undefined}
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            className={`${CLASSE_INPUT} ${erro ? BORDA_ERRO : BORDA_OK}`}
+          />
+        ) : tipoCampo === "date" ? (
           <input id={idCampo} aria-invalid={erro ? true : undefined} aria-describedby={erro ? idErro : undefined} type="date" value={valor} onChange={(e) => setValor(e.target.value)} className={`${CLASSE_INPUT} ${erro ? BORDA_ERRO : BORDA_OK}`} />
         ) : (
           <textarea
