@@ -120,6 +120,11 @@ describe("criarLancamento", () => {
     expect(await falha(criarLancamento(tesoureiro, base({ valor: "abc" })))).toEqual({ campo: "valor", regra: "invalido" });
     expect(await falha(criarLancamento(tesoureiro, base({ valor: undefined as never })))).toEqual({ campo: "valor", regra: "obrigatorio" });
     expect(await falha(criarLancamento(tesoureiro, base({ valor: " " })))).toEqual({ campo: "valor", regra: "obrigatorio" });
+    expect(await falha(criarLancamento(tesoureiro, base({ valor: "0.500" })))).toEqual({ campo: "valor", regra: "invalido" });
+    expect(await falha(criarLancamento(tesoureiro, base({ valor: "10.000.000.000,00" })))).toEqual({
+      campo: "valor",
+      regra: "acima_limite",
+    });
     expect(await falha(criarLancamento(tesoureiro, base({ categoriaId: "" })))).toEqual({ campo: "categoria", regra: "obrigatorio" });
     expect(await falha(criarLancamento(tesoureiro, base({ dataVencimento: "31/02/2026" })))).toEqual({ campo: "dataVencimento", regra: "invalido" });
     expect(await falha(criarLancamento(tesoureiro, base({ categoriaId: agua.id })))).toEqual({ campo: "categoria", regra: "tipo_incompativel" });

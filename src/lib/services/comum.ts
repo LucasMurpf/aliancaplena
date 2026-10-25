@@ -19,7 +19,7 @@ export function converterOuIssue<T>(
     return converter(entrada);
   } catch (e) {
     if (!(e instanceof Validacao)) throw e;
-    ctx.issues.push({ code: "custom", message: e.message, input: entrada, params: { regra } });
+    ctx.issues.push({ code: "custom", message: e.message, input: entrada, params: { regra: e.regra ?? regra } });
     return z.NEVER;
   }
 }
