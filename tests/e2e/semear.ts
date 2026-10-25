@@ -7,6 +7,7 @@ import { criarLancamento } from "@/lib/services/lancamentos";
 import { criarUsuario } from "@/lib/services/usuarios";
 import { resetarBanco } from "../helpers/db";
 import { ADMIN, DESCRICAO_PREVISTO, MEMBRO, TESOUREIRO } from "./dados";
+import { hojeSemente } from "./datas-semente";
 
 async function semear(): Promise<void> {
   await resetarBanco();
@@ -31,7 +32,7 @@ async function semear(): Promise<void> {
     categoriaId: categoria.id,
     contaId: conta.id,
     descricao: DESCRICAO_PREVISTO,
-    dataVencimento: new Date().toISOString().slice(0, 10),
+    dataVencimento: hojeSemente(),
     realizado: false,
   });
 }
