@@ -73,7 +73,7 @@ export function GraficoCategorias({ titulo, grafico, cor, total, itens }: Props)
   const maxChars = Math.max(8, Math.floor((largura - LARGURA_VALOR) / 7.2));
 
   return (
-    <section aria-labelledby={idTitulo} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+    <section aria-labelledby={idTitulo} className="relative rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <h2 id={idTitulo} className="text-base font-semibold text-slate-900">{titulo}</h2>
         {itens.length > 0 && <span className="text-sm tabular-nums text-slate-700">{total}</span>}
@@ -127,17 +127,19 @@ export function GraficoCategorias({ titulo, grafico, cor, total, itens }: Props)
               </BarChart>
             )}
           </div>
-          <table className="sr-only">
+          <div className="sr-only">
+          <table>
             <caption>{titulo}</caption>
             <thead>
               <tr><th scope="col">Categoria</th><th scope="col">Valor</th><th scope="col">Percentual</th></tr>
             </thead>
             <tbody>
-              {itens.map((i) => (
-                <tr key={i.nome}><th scope="row">{i.nome}</th><td>{i.valor}</td><td>{i.percentual}</td></tr>
+              {itens.map((i, n) => (
+                <tr key={n}><th scope="row">{i.nome}</th><td>{i.valor}</td><td>{i.percentual}</td></tr>
               ))}
             </tbody>
           </table>
+          </div>
         </>
       )}
     </section>

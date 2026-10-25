@@ -39,7 +39,7 @@ export function CascaSistema({ itens, nomeIgreja, logoUrl, nomeUsuario, podeLanc
       <RastreioTelas />
       <MonitorInatividade />
 
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 lg:block">{menu()}</aside>
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 self-start overflow-y-auto lg:block">{menu()}</aside>
 
       {/* Gaveta (abaixo de lg) */}
       <div className={`fixed inset-0 z-40 lg:hidden ${aberto ? "" : "pointer-events-none"}`} aria-hidden={!aberto}>
@@ -73,7 +73,7 @@ export function CascaSistema({ itens, nomeIgreja, logoUrl, nomeUsuario, podeLanc
           </button>
           <span className="truncate text-base font-semibold text-marca-900">{nomeIgreja}</span>
         </header>
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="flex-1 px-4 pb-28 pt-6 sm:px-6 lg:px-8">{children}</main>
       </div>
 
       {podeLancar ? <BotaoNovoLancamento /> : null}

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
@@ -17,7 +18,7 @@ import {
 import { formatarDataBR, hojeSP } from "@/lib/datas";
 import { formatarBRL } from "@/lib/dinheiro";
 import { pode } from "@/lib/permissoes";
-import { alertas, resumoMes, saldoPorConta, type AlertaItem, type TotalCategoria } from "@/lib/services/resumo";
+import { alertas, resumoMes, saldoPorConta, saldoTotal as obterSaldoTotal, type AlertaItem, type TotalCategoria } from "@/lib/services/resumo";
 
 type Props = { searchParams: Promise<{ mes?: string | string[] }> };
 
@@ -64,18 +65,27 @@ function SetaMes({ mes, simbolo, rotulo }: { mes: MesRef | null; simbolo: string
   );
 }
 
-export default async function PaginaInicio({ searchParams }: Props) {
+export default function PaginaInicio({ searchParams }: Props) {
+  // Sessão e dados são lidos em requisição: ficam atrás de Suspense (Cache Components).
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-5xl" aria-busy="true" />}>
+      <Painel searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function Painel({ searchParams }: Props) {
   const usuario = await obterUsuarioAtual();
   if (!usuario) redirect("/login?expirou=1");
   if (!pode(usuario.papeis, "financeiro.ver")) redirect("/em-breve");
 
   const mes = parseMes((await searchParams).mes, hojeSP());
-  const [contas, resumo, avisos] = await Promise.all([
+  const [contas, saldoTotal, resumo, avisos] = await Promise.all([
     saldoPorConta(usuario),
+    obterSaldoTotal(usuario),
     resumoMes(usuario, mes.ano, mes.mes),
     alertas(usuario),
   ]);
-  const saldoTotal = contas.reduce((s, c) => s.add(c.saldo), new Prisma.Decimal(0));
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">

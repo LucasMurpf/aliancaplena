@@ -3,6 +3,7 @@
 // primeiro parâmetro (testável sem cookie); Server Actions passam
 // `await obterUsuarioAtual()`.
 import bcrypt from "bcryptjs";
+import { connection } from "next/server";
 import { cookies } from "next/headers";
 import type { Papel } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -51,6 +52,8 @@ export function exigir(usuario: UsuarioAtual | null, p: Permissao): UsuarioAtual
 export async function obterUsuarioAtual(): Promise<UsuarioAtual | null> {
   const token = (await cookies()).get(NOME_COOKIE_SESSAO)?.value;
   if (!token) return null;
+  // Validar expiração usa a hora atual: isso só pode rodar em requisição, nunca no prerender.
+  await connection();
   const sessao = await lerTokenSessao(token);
   return sessao ? carregarUsuario(sessao.usuarioId) : null;
 }
