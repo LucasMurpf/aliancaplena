@@ -48,3 +48,26 @@ describe("registrarLog", () => {
     expect(await prisma.log.count()).toBe(0);
   });
 });
+
+describe("Log imutável no banco", () => {
+  beforeEach(async () => {
+    await resetarBanco();
+  });
+
+  it("recusa UPDATE e DELETE (Prisma e SQL direto) e continua aceitando INSERT", async () => {
+    const log = await prisma.log.create({ data: { entidade: "Conta", entidadeId: "c1", acao: "CRIOU" } });
+    expect(await prisma.log.count()).toBe(1);
+
+    await expect(prisma.log.update({ where: { id: log.id }, data: { valorNovo: "x" } })).rejects.toThrow(/imutável/);
+    await expect(prisma.log.updateMany({ data: { acao: "x" } })).rejects.toThrow(/imutável/);
+    await expect(prisma.log.delete({ where: { id: log.id } })).rejects.toThrow(/imutável/);
+    await expect(prisma.log.deleteMany()).rejects.toThrow(/imutável/);
+    await expect(prisma.$executeRaw`UPDATE "Log" SET "acao" = 'ALTEROU'`).rejects.toThrow(/imutável/);
+    await expect(prisma.$executeRaw`DELETE FROM "Log"`).rejects.toThrow(/imutável/);
+
+    const intacto = await prisma.log.findUniqueOrThrow({ where: { id: log.id } });
+    expect(intacto).toMatchObject({ acao: "CRIOU", valorNovo: null });
+    await prisma.log.create({ data: { entidade: "Conta", entidadeId: "c1", acao: "ALTEROU" } });
+    expect(await prisma.log.count()).toBe(2);
+  });
+});
