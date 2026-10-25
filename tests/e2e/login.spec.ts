@@ -13,3 +13,13 @@ test("credencial errada mostra erro; credencial certa leva ao dashboard", async 
   await expect(page).toHaveURL("/");
   await expect(page.getByRole("heading", { name: "Entradas", exact: true })).toBeVisible();
 });
+
+test("respostas trazem os cabeçalhos de segurança", async ({ request }) => {
+  const r = await request.get("/login");
+  expect(r.status()).toBe(200);
+  const h = r.headers();
+  expect(h["x-frame-options"]).toBe("DENY");
+  expect(h["content-security-policy"]).toBe("frame-ancestors 'none'");
+  expect(h["referrer-policy"]).toBe("same-origin");
+  expect(h["x-content-type-options"]).toBe("nosniff");
+});

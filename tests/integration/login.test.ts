@@ -62,6 +62,20 @@ describe("entrar", () => {
     expect(await prisma.log.count({ where: { acao: "LOGIN_FALHOU", entidadeId: "ninguem@igreja.org" } })).toBe(1);
   });
 
+  it("e-mail com mais de 254 caracteres → falha genérica e o log guarda só 254", async () => {
+    const enorme = `${"a".repeat(5000)}@igreja.org`;
+    await expect(entrar(enorme, SENHA)).rejects.toThrow("E-mail ou senha inválidos");
+    const log = await prisma.log.findFirstOrThrow({ where: { acao: "LOGIN_FALHOU" } });
+    expect(log.entidadeId).toHaveLength(254);
+    expect(log.entidadeId).toBe("a".repeat(254));
+
+    // Um e-mail real de 254 caracteres continua funcionando.
+    const longo = `${"b".repeat(254 - "@igreja.org".length)}@igreja.org`;
+    expect(longo).toHaveLength(254);
+    await criarUsuario(longo);
+    await expect(entrar(longo, SENHA)).resolves.toMatchObject({ email: longo });
+  });
+
   it("5 falhas seguidas → 6ª tentativa, mesmo com senha certa, recebe 'Muitas tentativas'", async () => {
     await criarUsuario("tes@igreja.org");
     for (let i = 0; i < 5; i++) {
