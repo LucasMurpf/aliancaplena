@@ -1,0 +1,217 @@
+// Esquema do banco (spec §3 e §6A). A URL do banco fica em prisma.config.ts.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Papel {
+  ADMIN
+  PASTOR
+  TESOUREIRO
+  EVENTOS
+  PATRIMONIO
+}
+
+enum TipoConta {
+  CAIXA
+  BANCO
+}
+
+enum TipoMovimento {
+  ENTRADA
+  SAIDA
+}
+
+enum StatusLancamento {
+  PREVISTO
+  REALIZADO
+  CANCELADO
+}
+
+enum StatusTransferencia {
+  ATIVA
+  CANCELADA
+}
+
+enum Dispositivo {
+  CELULAR
+  TABLET
+  PC
+}
+
+// Uma linha só, criada na Instalação.
+model Configuracao {
+  id             String   @id @default(cuid())
+  nomeIgreja     String
+  logoUrl        String?
+  cnpj           String?
+  metricasAtivas Boolean  @default(true)
+  criadoEm       DateTime @default(now())
+}
+
+model Usuario {
+  id           String   @id @default(cuid())
+  nome         String
+  // Sempre gravado em minúsculo.
+  email        String   @unique
+  senhaHash    String
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  papeis                 UsuarioPapel[]
+  lancamentosCriados     Lancamento[]    @relation("LancamentoCriadoPor")
+  lancamentosAtualizados Lancamento[]    @relation("LancamentoAtualizadoPor")
+  transferenciasCriadas  Transferencia[]
+  anexosEnviados         Anexo[]
+  logs                   Log[]
+  eventosUso             EventoUso[]
+}
+
+model UsuarioPapel {
+  usuarioId String
+  papel     Papel
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@id([usuarioId, papel])
+}
+
+model Membro {
+  id             String    @id @default(cuid())
+  nome           String
+  nomeBusca      String    @default("")
+  telefone       String?
+  dataNascimento DateTime? @db.Date
+  ativo          Boolean   @default(true)
+  criadoEm       DateTime  @default(now())
+
+  lancamentos Lancamento[]
+
+  @@index([nomeBusca])
+}
+
+model Conta {
+  id           String    @id @default(cuid())
+  nome         String
+  tipo         TipoConta
+  saldoInicial Decimal   @default(0) @db.Decimal(12, 2)
+  ativa        Boolean   @default(true)
+
+  lancamentos             Lancamento[]
+  transferenciasEnviadas  Transferencia[] @relation("TransferenciaOrigem")
+  transferenciasRecebidas Transferencia[] @relation("TransferenciaDestino")
+}
+
+model Categoria {
+  id      String        @id @default(cuid())
+  nome    String
+  tipo    TipoMovimento
+  nominal Boolean       @default(false)
+  ativa   Boolean       @default(true)
+
+  lancamentos Lancamento[]
+
+  @@unique([nome, tipo])
+}
+
+model Lancamento {
+  id                 String           @id @default(cuid())
+  tipo               TipoMovimento
+  valor              Decimal          @db.Decimal(12, 2)
+  descricao          String?
+  categoriaId        String
+  contaId            String
+  membroId           String?
+  status             StatusLancamento
+  dataVencimento     DateTime         @db.Date
+  dataRealizacao     DateTime?        @db.Date
+  motivoCancelamento String?
+  criadoPorId        String
+  atualizadoPorId    String?
+  criadoEm           DateTime         @default(now())
+  atualizadoEm       DateTime         @updatedAt
+
+  categoria     Categoria @relation(fields: [categoriaId], references: [id])
+  conta         Conta     @relation(fields: [contaId], references: [id])
+  membro        Membro?   @relation(fields: [membroId], references: [id])
+  criadoPor     Usuario   @relation("LancamentoCriadoPor", fields: [criadoPorId], references: [id])
+  atualizadoPor Usuario?  @relation("LancamentoAtualizadoPor", fields: [atualizadoPorId], references: [id])
+  anexos        Anexo[]
+
+  @@index([status, dataVencimento])
+  @@index([dataRealizacao])
+  @@index([contaId])
+}
+
+model Transferencia {
+  id                 String              @id @default(cuid())
+  contaOrigemId      String
+  contaDestinoId     String
+  valor              Decimal             @db.Decimal(12, 2)
+  data               DateTime            @db.Date
+  descricao          String?
+  status             StatusTransferencia @default(ATIVA)
+  motivoCancelamento String?
+  criadoPorId        String
+  criadoEm           DateTime            @default(now())
+
+  contaOrigem  Conta   @relation("TransferenciaOrigem", fields: [contaOrigemId], references: [id])
+  contaDestino Conta   @relation("TransferenciaDestino", fields: [contaDestinoId], references: [id])
+  criadoPor    Usuario @relation(fields: [criadoPorId], references: [id])
+}
+
+model Anexo {
+  id           String   @id @default(cuid())
+  lancamentoId String
+  // Chave do arquivo no storage; o arquivo fica fora do banco.
+  url          String
+  nomeArquivo  String
+  mimeType     String
+  tamanho      Int
+  enviadoPorId String
+  criadoEm     DateTime @default(now())
+
+  lancamento Lancamento @relation(fields: [lancamentoId], references: [id])
+  enviadoPor Usuario    @relation(fields: [enviadoPorId], references: [id])
+}
+
+// Somente inserção (spec §6). usuarioId é opcional: falha de login não tem usuário.
+model Log {
+  id            String   @id @default(cuid())
+  dataHora      DateTime @default(now())
+  usuarioId     String?
+  entidade      String
+  entidadeId    String
+  acao          String
+  campo         String?
+  // Texto legível, já formatado no momento da gravação.
+  valorAnterior String?
+  valorNovo     String?
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([entidade, entidadeId, dataHora])
+  @@index([acao, entidadeId, dataHora])
+}
+
+// Métricas de comportamento (spec §6A). Nunca guarda dinheiro nem dados pessoais.
+model EventoUso {
+  id           String      @id @default(cuid())
+  dataHora     DateTime    @default(now())
+  usuarioId    String?
+  papeis       Papel[]
+  sessaoId     String?
+  dispositivo  Dispositivo
+  evento       String
+  tela         String
+  duracaoMs    Int?
+  propriedades Json        @default("{}")
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([evento, dataHora])
+}
