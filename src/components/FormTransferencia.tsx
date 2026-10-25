@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { criarTransferenciaAction } from "@/app/(sistema)/lancamentos/actions";
+import { destinoDoErro } from "@/lib/form-lancamento";
 import { rastrear } from "@/lib/metricas/cliente";
 import { CampoData } from "./CampoData";
 import { CampoDinheiro } from "./CampoDinheiro";
@@ -38,7 +39,8 @@ export function FormTransferencia({ contas, hoje }: Props) {
       if (!r.ok) {
         if (r.campo || r.regra) rastrear("erro_validacao", { campo: r.campo ?? "geral", regra: r.regra ?? "outra" });
         if (r.inesperado) rastrear("erro_inesperado", { campo: "transferencia" });
-        if (r.campo) setErros({ [CAMPO_TELA[r.campo] ?? r.campo]: r.erro });
+        const destino = destinoDoErro(r.campo, ["contaOrigem", "contaDestino", "valor", "data"], CAMPO_TELA);
+        if (destino) setErros({ [destino]: r.erro });
         else setErroGeral(r.erro);
         return;
       }

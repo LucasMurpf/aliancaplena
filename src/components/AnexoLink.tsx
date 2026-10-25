@@ -11,17 +11,19 @@ export function AnexoLink({ id, nome, detalhe }: { id: string; nome: string; det
   async function abrir() {
     setAbrindo(true);
     setErro(null);
-    // Abre a aba já no clique (evita bloqueio de pop-up) e a direciona quando a URL chegar.
-    const aba = window.open("", "_blank");
     try {
       const r = await urlAnexoAction(id);
       if (!r.ok) {
-        aba?.close();
         setErro(r.erro);
         return;
       }
-      if (aba) aba.location.href = r.url;
-      else window.location.href = r.url;
+      // Âncora com noopener: a página do anexo não controla esta aba (window.open com noopener
+      // devolve sempre null, então não dá para detectar bloqueio por ele).
+      const a = document.createElement("a");
+      a.href = r.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.click();
     } finally {
       setAbrindo(false);
     }

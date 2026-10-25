@@ -81,3 +81,34 @@ export function montarDados(e: EstadoLancamento, categorias: CategoriaForm[], ve
 export function formularioPreenchido(e: EstadoLancamento, anexos: number): boolean {
   return e.valor !== "" || e.descricao.trim() !== "" || e.membro !== null || anexos > 0;
 }
+
+/**
+ * Envia os arquivos um a um e devolve os nomes dos que falharam. Nunca lança: uma exceção
+ * (rede, corpo grande demais) conta como falha, pois o lançamento já está salvo nesse ponto.
+ */
+export async function enviarAnexos<A extends { name: string }>(
+  arquivos: A[],
+  enviar: (arquivo: A) => Promise<{ ok?: boolean }>,
+): Promise<string[]> {
+  const falhas: string[] = [];
+  for (const arquivo of arquivos) {
+    try {
+      const r = await enviar(arquivo);
+      if (!r.ok) falhas.push(arquivo.name);
+    } catch {
+      falhas.push(arquivo.name);
+    }
+  }
+  return falhas;
+}
+
+/** Erro de um campo que existe na tela vai junto dele; senão vira mensagem geral (nunca se perde). */
+export function destinoDoErro(
+  campo: string | undefined,
+  camposDaTela: readonly string[],
+  mapa: Record<string, string> = {},
+): string | null {
+  if (!campo) return null;
+  const chave = mapa[campo] ?? campo;
+  return camposDaTela.includes(chave) ? chave : null;
+}

@@ -5,6 +5,7 @@ import { FiltrosLancamentos } from "@/components/FiltrosLancamentos";
 import { obterUsuarioAtual } from "@/lib/auth";
 import { formatarDataBR, hojeSP } from "@/lib/datas";
 import { formatarBRL } from "@/lib/dinheiro";
+import { ErroApp } from "@/lib/erros";
 import { filtrosParaQuery, parseFiltros, type ParametrosUrl } from "@/lib/filtros-lancamentos";
 import { pode } from "@/lib/permissoes";
 import { listarCategorias, listarContas, obterMembro } from "@/lib/services/cadastros";
@@ -66,13 +67,18 @@ async function Lista({ searchParams }: Props) {
   if (!usuario) redirect("/login?expirou=1");
   if (!pode(usuario.papeis, "financeiro.ver")) redirect("/em-breve");
 
-  const filtro = parseFiltros(await searchParams);
   const podeMembro = pode(usuario.papeis, "membros.ver_nomes");
+  const filtro = parseFiltros(await searchParams);
+  // Sem permissão para ver nomes, o filtro por membro seria um jeito de descobrir quem contribuiu.
+  if (!podeMembro) delete filtro.membroId;
   const [resultado, categorias, contas, membro] = await Promise.all([
     listarLancamentos(usuario, filtro),
     listarCategorias(usuario, { incluirInativas: true }),
     listarContas(usuario, { incluirInativas: true }),
-    podeMembro && filtro.membroId ? obterMembro(usuario, filtro.membroId).catch(() => null) : null,
+    podeMembro && filtro.membroId ? obterMembro(usuario, filtro.membroId).catch((e) => {
+          if (e instanceof ErroApp) return null;
+          throw e;
+        }) : null,
   ]);
 
   const pagina = filtro.pagina ?? 1;
@@ -108,6 +114,12 @@ async function Lista({ searchParams }: Props) {
           </Link>
         ) : null}
       </header>
+
+      <p>
+        <Link href="/transferencias" className="inline-flex min-h-11 items-center text-sm font-semibold text-marca-700 hover:underline">
+          Ver transferências
+        </Link>
+      </p>
 
       <FiltrosLancamentos
         // Recria o formulário quando a URL muda (voltar do navegador, "Limpar").

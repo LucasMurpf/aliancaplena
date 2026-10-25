@@ -10,6 +10,8 @@ import {
 } from "@/app/(sistema)/lancamentos/actions";
 import {
   aposSalvarELancarOutro,
+  destinoDoErro,
+  enviarAnexos,
   estadoInicial,
   formularioPreenchido,
   montarDados,
@@ -17,7 +19,7 @@ import {
   type CategoriaForm,
   type EstadoLancamento,
 } from "@/lib/form-lancamento";
-import { rastrear } from "@/lib/metricas/cliente";
+import { descarregarMetricas, rastrear } from "@/lib/metricas/cliente";
 import { CampoData } from "./CampoData";
 import { CampoDinheiro } from "./CampoDinheiro";
 import { SeletorMembro } from "./SeletorMembro";
@@ -70,6 +72,7 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, ed
       if (salvo.current) return;
       if (formularioPreenchido(ultimo.current.estado, ultimo.current.anexos)) {
         rastrear("lancamento_abandonado", { tipo: ultimo.current.estado.tipo });
+        void descarregarMetricas();
         salvo.current = true; // evita contar duas vezes (pagehide + desmontagem)
       }
     };
@@ -100,18 +103,19 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, ed
       if (!r.ok) {
         if (r.campo || r.regra) rastrear("erro_validacao", { campo: r.campo ?? "geral", regra: r.regra ?? "outra" });
         if (r.inesperado) rastrear("erro_inesperado", { campo: "lancamento" });
-        if (r.campo) setErros({ [CAMPO_TELA[r.campo] ?? r.campo]: r.erro });
+        const tela = ["valor", "categoria", "conta", "data", ...(categoria?.nominal ? ["membro"] : [])];
+        const destino = destinoDoErro(r.campo, tela, CAMPO_TELA);
+        if (destino) setErros({ [destino]: r.erro });
         else setErroGeral(r.erro);
         return;
       }
       const id = r.id;
-      const falhas: string[] = [];
-      for (const arquivo of anexos) {
+      // O lançamento já está salvo: qualquer falha de anexo (inclusive exceção) é só um aviso.
+      const falhas = await enviarAnexos(anexos, (arquivo) => {
         const fd = new FormData();
         fd.append("arquivo", arquivo);
-        const a = await anexarArquivoAction(id, fd);
-        if (!a.ok) falhas.push(arquivo.name);
-      }
+        return anexarArquivoAction(id, fd);
+      });
       salvo.current = true;
       if (novo) {
         rastrear(

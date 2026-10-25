@@ -65,6 +65,7 @@ describe("criarTransferencia", () => {
     const p = criarTransferencia(tesoureiro, dados({ contaDestinoId: caixa.id }));
     await expect(p).rejects.toBeInstanceOf(RegraDeNegocio);
     await expect(p).rejects.toThrow("Escolha contas diferentes");
+    await expect(p).rejects.toMatchObject({ campo: "contaDestino", regra: "igual_origem" });
   });
 
   it("recusa conta inativa (origem ou destino)", async () => {

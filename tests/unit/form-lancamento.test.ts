@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   aposSalvarELancarOutro,
+  destinoDoErro,
+  enviarAnexos,
   estadoInicial,
   formularioPreenchido,
   montarDados,
@@ -134,5 +136,32 @@ describe("formularioPreenchido", () => {
     expect(formularioPreenchido({ ...e, descricao: "x" }, 0)).toBe(true);
     expect(formularioPreenchido({ ...e, membro: { id: "m", nome: "J" } }, 0)).toBe(true);
     expect(formularioPreenchido(e, 1)).toBe(true);
+  });
+});
+
+describe("enviarAnexos", () => {
+  const arq = (name: string) => ({ name });
+  it("devolve os nomes que falharam, inclusive por exceção, sem lançar", async () => {
+    const falhas = await enviarAnexos([arq("a"), arq("b"), arq("c")], async (f) => {
+      if (f.name === "b") throw new Error("rede");
+      return { ok: f.name === "a" };
+    });
+    expect(falhas).toEqual(["b", "c"]);
+  });
+  it("vazio quando tudo deu certo", async () => {
+    expect(await enviarAnexos([arq("a")], async () => ({ ok: true }))).toEqual([]);
+  });
+});
+
+describe("destinoDoErro", () => {
+  const tela = ["valor", "categoria", "data"];
+  it("campo existente na tela (com mapeamento)", () => {
+    expect(destinoDoErro("valor", tela)).toBe("valor");
+    expect(destinoDoErro("dataVencimento", tela, { dataVencimento: "data" })).toBe("data");
+  });
+  it("campo sem lugar na tela ou ausente → null (mensagem geral)", () => {
+    expect(destinoDoErro("tipo", tela)).toBeNull();
+    expect(destinoDoErro("membro", tela)).toBeNull();
+    expect(destinoDoErro(undefined, tela)).toBeNull();
   });
 });

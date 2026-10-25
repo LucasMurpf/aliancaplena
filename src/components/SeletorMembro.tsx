@@ -80,6 +80,11 @@ export function SeletorMembro({ valor, onChange, rotulo = "Membro", erro, permit
             Trocar
           </button>
         </div>
+        {erro ? (
+          <p id={`${id}-erro`} role="alert" className="text-sm text-red-700">
+            {erro}
+          </p>
+        ) : null}
       </div>
     );
   }

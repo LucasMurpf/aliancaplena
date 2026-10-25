@@ -55,7 +55,7 @@ async function Detalhe({ params, searchParams }: Props) {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <header className="flex items-center gap-2">
-        <Link href="/lancamentos" aria-label="Voltar para lançamentos" className="flex size-11 items-center justify-center rounded-full text-2xl text-marca-700 hover:bg-marca-50">
+        <Link href="/transferencias" aria-label="Voltar para transferências" className="flex size-11 items-center justify-center rounded-full text-2xl text-marca-700 hover:bg-marca-50">
           <span aria-hidden="true">‹</span>
         </Link>
         <h1 className="text-2xl font-bold text-marca-900">Transferência</h1>

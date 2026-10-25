@@ -15,6 +15,7 @@ import {
   definirMembroAtivo,
   listarCategorias,
   listarContas,
+  obterMembro,
 } from "@/lib/services/cadastros";
 import { instalar } from "@/lib/services/instalacao";
 import { criarUsuario } from "@/lib/services/usuarios";
@@ -137,6 +138,20 @@ describe("categorias", () => {
     expect((await logs(c.id)).map((x) => x.acao)).toEqual(["CRIOU", "INATIVOU"]);
     await expect(listarCategorias(eventos)).rejects.toBeInstanceOf(NaoAutorizado);
     await expect(definirCategoriaAtiva(admin, "x", true)).rejects.toThrow("Categoria não encontrada");
+  });
+});
+
+describe("obterMembro", () => {
+  it("devolve o membro a quem vê nomes", async () => {
+    const m = await criarMembro(tesoureiro, { nome: "Maria" });
+    expect(await obterMembro(tesoureiro, m.id)).toMatchObject({ id: m.id, nome: "Maria" });
+  });
+  it("recusa quem não tem membros.ver_nomes", async () => {
+    const m = await criarMembro(tesoureiro, { nome: "Maria" });
+    await expect(obterMembro(eventos, m.id)).rejects.toBeInstanceOf(NaoAutorizado);
+  });
+  it("id desconhecido → NaoEncontrado", async () => {
+    await expect(obterMembro(tesoureiro, "nao-existe")).rejects.toBeInstanceOf(NaoEncontrado);
   });
 });
 

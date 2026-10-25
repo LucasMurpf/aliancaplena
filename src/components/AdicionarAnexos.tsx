@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { anexarArquivoAction } from "@/app/(sistema)/lancamentos/actions";
+import { enviarAnexos } from "@/lib/form-lancamento";
 import { Alerta } from "./ui/Alerta";
 import { Botao } from "./ui/Botao";
 import { UploadAnexos } from "./UploadAnexos";
@@ -17,21 +18,18 @@ export function AdicionarAnexos({ lancamentoId }: { lancamentoId: string }) {
   async function enviar() {
     setEnviando(true);
     setErros([]);
-    const falhas: File[] = [];
-    const msgs: string[] = [];
-    for (const arquivo of arquivos) {
-      const fd = new FormData();
-      fd.append("arquivo", arquivo);
-      const r = await anexarArquivoAction(lancamentoId, fd);
-      if (!r.ok) {
-        falhas.push(arquivo);
-        msgs.push(`${arquivo.name}: ${r.erro}`);
-      }
+    try {
+      const falhas = await enviarAnexos(arquivos, (arquivo) => {
+        const fd = new FormData();
+        fd.append("arquivo", arquivo);
+        return anexarArquivoAction(lancamentoId, fd);
+      });
+      setArquivos(arquivos.filter((a) => falhas.includes(a.name)));
+      setErros(falhas.map((n) => `${n}: não foi possível enviar. Confira o tipo (foto ou PDF), o tamanho (até 10 MB) e a conexão.`));
+      router.refresh();
+    } finally {
+      setEnviando(false);
     }
-    setEnviando(false);
-    setArquivos(falhas);
-    setErros(msgs);
-    router.refresh();
   }
 
   return (
