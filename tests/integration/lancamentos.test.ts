@@ -189,6 +189,37 @@ describe("editarLancamento", () => {
     expect(alt[0]).toMatchObject({ campo: "valor", valorAnterior: "R$ 100,00", valorNovo: "R$ 150,00" });
   });
 
+  it("formulário desatualizado (versão antiga) é recusado em vez de sobrescrever", async () => {
+    const l = await criarLancamento(tesoureiro, base());
+    const versaoA = l.atualizadoEm.toISOString(); // A abre o formulário
+    const b = await editarLancamento(pastorTes, l.id, base({ valor: "150,00" }), versaoA); // B salva antes
+    await expect(editarLancamento(tesoureiro, l.id, base({ descricao: "Só a descrição" }), versaoA)).rejects.toThrow(
+      "Este lançamento foi alterado por outra pessoa. Recarregue a página.",
+    );
+    const agora = await prisma.lancamento.findUniqueOrThrow({ where: { id: l.id } });
+    expect(agora.valor.toFixed(2)).toBe("150.00");
+    expect(agora.descricao).toBe("Culto");
+
+    // Baixa também muda a versão.
+    await darBaixa(tesoureiro, l.id, "11/03/2026");
+    await expect(
+      editarLancamento(tesoureiro, l.id, base({ valor: "150,00", descricao: "X" }), b.atualizadoEm.toISOString()),
+    ).rejects.toBeInstanceOf(RegraDeNegocio);
+
+    // Com a versão atual, salva; sem versão, segue o comportamento anterior.
+    const atual = await prisma.lancamento.findUniqueOrThrow({ where: { id: l.id } });
+    const ok = await editarLancamento(
+      tesoureiro,
+      l.id,
+      base({ valor: "150,00", descricao: "X", realizado: true }),
+      atual.atualizadoEm.toISOString(),
+    );
+    expect(ok.descricao).toBe("X");
+    await expect(editarLancamento(tesoureiro, l.id, base({ valor: "150,00", descricao: "Y", realizado: true }), "lixo")).rejects.toBeInstanceOf(
+      Validacao,
+    );
+  });
+
   it("loga categoria e membro pelo nome, e datas formatadas", async () => {
     const l = await criarLancamento(tesoureiro, base());
     await editarLancamento(

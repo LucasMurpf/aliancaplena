@@ -39,7 +39,13 @@ type Props = {
   /** Aberto pelo botão flutuante ➕. */
   viaAtalho?: boolean;
   /** Presente na edição. */
-  edicao?: { id: string; estado: EstadoLancamento; vencimentoOriginal?: string };
+  edicao?: {
+    id: string;
+    estado: EstadoLancamento;
+    vencimentoOriginal?: string;
+    /** `atualizadoEm` (ISO) do lançamento quando a página carregou. */
+    versao: string;
+  };
 };
 
 // Campos do serviço → campo da tela.
@@ -101,7 +107,7 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, ed
     setSalvoMsg(false);
     try {
       const dados = montarDados(estado, categorias, edicao?.vencimentoOriginal);
-      const r = edicao ? await editarLancamentoAction(edicao.id, dados) : await salvarLancamentoAction(dados);
+      const r = edicao ? await editarLancamentoAction(edicao.id, dados, edicao.versao) : await salvarLancamentoAction(dados);
       if (!r.ok) {
         if (r.campo || r.regra) rastrear("erro_validacao", { campo: r.campo ?? "geral", regra: r.regra ?? "outra" });
         if (r.inesperado) rastrear("erro_inesperado", { campo: "lancamento" });
@@ -187,6 +193,8 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, ed
     <form onSubmit={aoEnviar} className="flex flex-col gap-4" noValidate>
       {salvoMsg ? <Alerta tipo="sucesso">Lançamento salvo</Alerta> : null}
       {erroGeral ? <Alerta tipo="erro">{erroGeral}</Alerta> : null}
+
+      {edicao ? <input type="hidden" name="versao" value={edicao.versao} /> : null}
 
       <div role="radiogroup" aria-label="Tipo" className="flex gap-2">
         {botaoTipo("ENTRADA", "Entrada", "bg-emerald-600 text-white")}

@@ -50,6 +50,7 @@ async function Editar({ params }: Props) {
         hoje={iso(hojeSP())}
         edicao={{
           id: l.id,
+          versao: l.atualizadoEm.toISOString(),
           vencimentoOriginal: realizado ? iso(l.dataVencimento) : undefined,
           estado: {
             tipo: l.tipo,

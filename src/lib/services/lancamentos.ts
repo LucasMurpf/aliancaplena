@@ -25,6 +25,8 @@ export const MSG_LANCAMENTO_NAO_ENCONTRADO = "Lançamento não encontrado";
 export const MSG_CANCELADO = "Lançamento cancelado não pode ser alterado";
 export const MSG_JA_REALIZADO = "Lançamento já realizado";
 export const MSG_CONFLITO = "O lançamento foi alterado por outra pessoa. Recarregue e tente novamente";
+/** Formulário de edição aberto antes de outra alteração (versão carregada ≠ atual). */
+export const MSG_VERSAO_ANTIGA = "Este lançamento foi alterado por outra pessoa. Recarregue a página.";
 export const NOME_MASCARADO = "Contribuição nominal";
 export const ITENS_POR_PAGINA = 20;
 
@@ -180,9 +182,10 @@ async function gravarSeInalterado(
   tx: Prisma.TransactionClient,
   atual: Lancamento,
   data: Prisma.LancamentoUncheckedUpdateManyInput,
+  versao?: Date,
 ): Promise<Lancamento> {
   const r = await tx.lancamento.updateMany({
-    where: { id: atual.id, status: atual.status, atualizadoEm: atual.atualizadoEm },
+    where: { id: atual.id, status: atual.status, atualizadoEm: versao ?? atual.atualizadoEm },
     data,
   });
   if (r.count !== 1) {
@@ -227,11 +230,37 @@ export async function criarLancamento(ator: UsuarioAtual | null, d: DadosLancame
   });
 }
 
-export async function editarLancamento(ator: UsuarioAtual | null, id: string, d: DadosLancamento): Promise<Lancamento> {
+const esquemaVersao = z
+  .string({ error: MSG_VERSAO_ANTIGA })
+  .optional()
+  .transform((t, ctx) => {
+    if (t === undefined || t === "") return undefined;
+    const d = new Date(t);
+    if (Number.isNaN(d.getTime())) {
+      ctx.issues.push({ code: "custom", message: MSG_VERSAO_ANTIGA, input: t, params: { regra: "invalido" } });
+      return z.NEVER;
+    }
+    return d;
+  });
+
+/**
+ * `versao`: o `atualizadoEm` (ISO) que o formulário carregou. Se o lançamento mudou desde então
+ * (outra edição, baixa), recusa em vez de sobrescrever em silêncio.
+ */
+export async function editarLancamento(
+  ator: UsuarioAtual | null,
+  id: string,
+  d: DadosLancamento,
+  versao?: string,
+): Promise<Lancamento> {
   const quem = exigir(ator, "financeiro.lancar");
   const v = validar(esquemaDados, d, { campos: CAMPOS_FORM });
+  const carregada = validar(esquemaVersao, versao, { campo: "versao" });
   return prisma.$transaction(async (tx) => {
     const atual = await carregarAlteravel(tx, id);
+    if (carregada && carregada.getTime() !== atual.atualizadoEm.getTime()) {
+      throw new RegraDeNegocio(MSG_VERSAO_ANTIGA, { regra: "versao_antiga" });
+    }
     const nomesAntes = await nomesDosVinculos(tx, atual);
     const nomesDepois = await conferirVinculos(tx, v, atual);
     const novo = {
@@ -246,7 +275,7 @@ export async function editarLancamento(ator: UsuarioAtual | null, id: string, d:
     };
     const mudancas = diffCampos(textoLancamento(atual, nomesAntes), textoLancamento(novo, nomesDepois));
     if (mudancas.length === 0) return atual;
-    const salvo = await gravarSeInalterado(tx, atual, { ...novo, atualizadoPorId: quem.id });
+    const salvo = await gravarSeInalterado(tx, atual, { ...novo, atualizadoPorId: quem.id }, carregada);
     for (const m of mudancas) {
       await registrarLog(tx, {
         usuarioId: quem.id,

@@ -19,8 +19,13 @@ export async function salvarLancamentoAction(dados: DadosLancamento): Promise<Re
   return executar(async (ator) => ({ id: (await criarLancamento(ator, dados)).id }));
 }
 
-export async function editarLancamentoAction(id: string, dados: DadosLancamento): Promise<ResultadoAcao<{ id: string }>> {
-  return executar(async (ator) => ({ id: (await editarLancamento(ator, id, dados)).id }));
+/** `versao`: `atualizadoEm` (ISO) carregado pelo formulário; versão antiga é recusada. */
+export async function editarLancamentoAction(
+  id: string,
+  dados: DadosLancamento,
+  versao?: string,
+): Promise<ResultadoAcao<{ id: string }>> {
+  return executar(async (ator) => ({ id: (await editarLancamento(ator, id, dados, versao)).id }));
 }
 
 export async function darBaixaAction(id: string, data: string): Promise<ResultadoAcao> {
