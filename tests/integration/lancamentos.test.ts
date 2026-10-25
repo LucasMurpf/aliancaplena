@@ -109,6 +109,26 @@ describe("criarLancamento", () => {
     await expect(criarLancamento(tesoureiro, base({ tipo: "XX" as never }))).rejects.toBeInstanceOf(Validacao);
   });
 
+  it("erros trazem campo e regra para o formulário", async () => {
+    const falha = async (p: Promise<unknown>) => {
+      const e = await p.then(
+        () => null,
+        (x: unknown) => x,
+      );
+      return { campo: (e as Validacao).campo, regra: (e as Validacao).regra };
+    };
+    expect(await falha(criarLancamento(tesoureiro, base({ valor: "abc" })))).toEqual({ campo: "valor", regra: "invalido" });
+    expect(await falha(criarLancamento(tesoureiro, base({ valor: undefined as never })))).toEqual({ campo: "valor", regra: "obrigatorio" });
+    expect(await falha(criarLancamento(tesoureiro, base({ valor: " " })))).toEqual({ campo: "valor", regra: "obrigatorio" });
+    expect(await falha(criarLancamento(tesoureiro, base({ categoriaId: "" })))).toEqual({ campo: "categoria", regra: "obrigatorio" });
+    expect(await falha(criarLancamento(tesoureiro, base({ dataVencimento: "31/02/2026" })))).toEqual({ campo: "dataVencimento", regra: "invalido" });
+    expect(await falha(criarLancamento(tesoureiro, base({ categoriaId: agua.id })))).toEqual({ campo: "categoria", regra: "tipo_incompativel" });
+    expect(await falha(criarLancamento(tesoureiro, base({ categoriaId: dizimo.id })))).toEqual({ campo: "membro", regra: "obrigatorio" });
+    const l = await criarLancamento(tesoureiro, base());
+    expect(await falha(darBaixa(tesoureiro, l.id, "xx"))).toEqual({ campo: "dataRealizacao", regra: "invalido" });
+    expect(await falha(cancelarLancamento(tesoureiro, l.id, " "))).toEqual({ campo: "motivo", regra: "obrigatorio" });
+  });
+
   it("categoria de tipo diferente é recusada", async () => {
     await expect(criarLancamento(tesoureiro, base({ categoriaId: agua.id }))).rejects.toThrow(
       "Categoria não corresponde ao tipo do lançamento",

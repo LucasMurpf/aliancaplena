@@ -5,7 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
 import { pode } from "@/lib/permissoes";
-import { formatarBRL, parseValorBR } from "@/lib/dinheiro";
+import { formatarBRL } from "@/lib/dinheiro";
 import { formatarDataBR } from "@/lib/datas";
 import { NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
 import { diffCampos, registrarLog } from "@/lib/log";
@@ -16,6 +16,7 @@ import {
   esquemaId,
   esquemaMotivo,
   esquemaTextoOpcional,
+  esquemaValor,
   validar,
 } from "./comum";
 
@@ -57,7 +58,7 @@ const enumDe = <T extends string>(o: Record<string, T>, msg: string) =>
 
 const esquemaDados = z.object({
   tipo: enumDe(TipoMovimento, "Tipo de lançamento inválido"),
-  valor: z.string({ error: "Valor inválido" }).transform((t) => parseValorBR(t)),
+  valor: esquemaValor,
   categoriaId: esquemaId("Informe a categoria"),
   contaId: esquemaId("Informe a conta"),
   membroId: z
@@ -76,6 +77,9 @@ const esquemaDados = z.object({
   dataRealizacao: esquemaDataOpcional,
 });
 type DadosValidos = z.output<typeof esquemaDados>;
+
+/** Chaves do esquema → nomes dos campos do formulário (para `ErroApp.campo`). */
+const CAMPOS_FORM = { categoriaId: "categoria", contaId: "conta", membroId: "membro" };
 
 const esquemaFiltro = z.object({
   de: esquemaDataOpcional,
@@ -106,19 +110,19 @@ async function conferirVinculos(
   const categoria = await tx.categoria.findUnique({ where: { id: v.categoriaId } });
   const conta = await tx.conta.findUnique({ where: { id: v.contaId } });
   const membro = v.membroId ? await tx.membro.findUnique({ where: { id: v.membroId } }) : null;
-  if (!categoria) throw new NaoEncontrado("Categoria não encontrada");
-  if (!conta) throw new NaoEncontrado("Conta não encontrada");
-  if (v.membroId && !membro) throw new NaoEncontrado("Membro não encontrado");
+  if (!categoria) throw new NaoEncontrado("Categoria não encontrada", { campo: "categoria", regra: "inexistente" });
+  if (!conta) throw new NaoEncontrado("Conta não encontrada", { campo: "conta", regra: "inexistente" });
+  if (v.membroId && !membro) throw new NaoEncontrado("Membro não encontrado", { campo: "membro", regra: "inexistente" });
 
-  if (categoria.tipo !== v.tipo) throw new RegraDeNegocio("Categoria não corresponde ao tipo do lançamento");
-  if (categoria.nominal && !membro) throw new RegraDeNegocio("Esta categoria exige um membro");
-  if (!categoria.nominal && membro) throw new RegraDeNegocio("Esta categoria não aceita membro");
+  if (categoria.tipo !== v.tipo) throw new RegraDeNegocio("Categoria não corresponde ao tipo do lançamento", { campo: "categoria", regra: "tipo_incompativel" });
+  if (categoria.nominal && !membro) throw new RegraDeNegocio("Esta categoria exige um membro", { campo: "membro", regra: "obrigatorio" });
+  if (!categoria.nominal && membro) throw new RegraDeNegocio("Esta categoria não aceita membro", { campo: "membro", regra: "nao_aceita" });
 
   const trocou = (campo: "categoriaId" | "contaId" | "membroId", novo: string | null) =>
     !anterior || anterior[campo] !== novo;
-  if (!categoria.ativa && trocou("categoriaId", categoria.id)) throw new RegraDeNegocio("Categoria inativa");
-  if (!conta.ativa && trocou("contaId", conta.id)) throw new RegraDeNegocio("Conta inativa");
-  if (membro && !membro.ativo && trocou("membroId", membro.id)) throw new RegraDeNegocio("Membro inativo");
+  if (!categoria.ativa && trocou("categoriaId", categoria.id)) throw new RegraDeNegocio("Categoria inativa", { campo: "categoria", regra: "inativo" });
+  if (!conta.ativa && trocou("contaId", conta.id)) throw new RegraDeNegocio("Conta inativa", { campo: "conta", regra: "inativo" });
+  if (membro && !membro.ativo && trocou("membroId", membro.id)) throw new RegraDeNegocio("Membro inativo", { campo: "membro", regra: "inativo" });
 
   return { categoria: categoria.nome, conta: conta.nome, membro: membro?.nome ?? null };
 }
@@ -190,7 +194,7 @@ async function gravarSeInalterado(
 
 export async function criarLancamento(ator: UsuarioAtual | null, d: DadosLancamento): Promise<Lancamento> {
   const quem = exigir(ator, "financeiro.lancar");
-  const v = validar(esquemaDados, d);
+  const v = validar(esquemaDados, d, { campos: CAMPOS_FORM });
   return prisma.$transaction(async (tx) => {
     const nomes = await conferirVinculos(tx, v);
     const l = await tx.lancamento.create({
@@ -219,7 +223,7 @@ export async function criarLancamento(ator: UsuarioAtual | null, d: DadosLancame
 
 export async function editarLancamento(ator: UsuarioAtual | null, id: string, d: DadosLancamento): Promise<Lancamento> {
   const quem = exigir(ator, "financeiro.lancar");
-  const v = validar(esquemaDados, d);
+  const v = validar(esquemaDados, d, { campos: CAMPOS_FORM });
   return prisma.$transaction(async (tx) => {
     const atual = await carregarAlteravel(tx, id);
     const nomesAntes = await nomesDosVinculos(tx, atual);
@@ -263,7 +267,7 @@ async function nomesDosVinculos(tx: Prisma.TransactionClient, l: Lancamento): Pr
 
 export async function darBaixa(ator: UsuarioAtual | null, id: string, dataRealizacao: string): Promise<Lancamento> {
   const quem = exigir(ator, "financeiro.lancar");
-  const data = validar(esquemaData, dataRealizacao);
+  const data = validar(esquemaData, dataRealizacao, { campo: "dataRealizacao" });
   return prisma.$transaction(async (tx) => {
     const atual = await carregarAlteravel(tx, id);
     if (atual.status === StatusLancamento.REALIZADO) throw new RegraDeNegocio(MSG_JA_REALIZADO);
@@ -287,7 +291,7 @@ export async function darBaixa(ator: UsuarioAtual | null, id: string, dataRealiz
 
 export async function cancelarLancamento(ator: UsuarioAtual | null, id: string, motivo: string): Promise<Lancamento> {
   const quem = exigir(ator, "financeiro.lancar");
-  const m = validar(esquemaMotivo, motivo);
+  const m = validar(esquemaMotivo, motivo, { campo: "motivo" });
   return prisma.$transaction(async (tx) => {
     const atual = await carregarAlteravel(tx, id);
     const salvo = await gravarSeInalterado(tx, atual, {

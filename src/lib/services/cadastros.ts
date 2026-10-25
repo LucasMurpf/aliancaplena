@@ -282,6 +282,13 @@ export async function buscarMembros(
   });
 }
 
+export async function obterMembro(ator: UsuarioAtual | null, id: string): Promise<Membro> {
+  exigir(ator, "membros.ver_nomes");
+  const m = await prisma.membro.findUnique({ where: { id } });
+  if (!m) throw new NaoEncontrado("Membro não encontrado");
+  return m;
+}
+
 export async function criarMembro(
   ator: UsuarioAtual | null,
   d: { nome: string; telefone?: string | null; dataNascimento?: string | null },
