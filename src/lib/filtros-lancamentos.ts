@@ -1,6 +1,7 @@
 // Filtros da lista de lançamentos ↔ parâmetros da URL (funções puras).
 import type { StatusLancamento, TipoMovimento } from "@prisma/client";
 import { parseDataBR } from "@/lib/datas";
+import { parsePagina } from "@/lib/paginacao";
 import type { FiltroLancamentos } from "@/lib/services/lancamentos";
 
 export type ParametrosUrl = Record<string, string | string[] | undefined>;
@@ -30,7 +31,6 @@ function enumValido<T extends string>(lista: readonly T[], v: string | undefined
 
 /** Lê a URL de forma tolerante: valor inválido é descartado (nunca derruba a página). */
 export function parseFiltros(sp: ParametrosUrl): FiltroLancamentos {
-  const pagina = Number(primeiro(sp.pagina));
   const f: FiltroLancamentos = {
     de: dataValida(primeiro(sp.de)),
     ate: dataValida(primeiro(sp.ate)),
@@ -40,7 +40,7 @@ export function parseFiltros(sp: ParametrosUrl): FiltroLancamentos {
     status: enumValido(STATUS, primeiro(sp.status)),
     membroId: primeiro(sp.membro),
     busca: primeiro(sp.busca),
-    pagina: Number.isInteger(pagina) && pagina >= 1 ? pagina : 1,
+    pagina: parsePagina(primeiro(sp.pagina)),
   };
   return Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined)) as FiltroLancamentos;
 }

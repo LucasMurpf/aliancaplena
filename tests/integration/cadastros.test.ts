@@ -251,6 +251,13 @@ describe("listarMembros", () => {
     expect(comInativos.itens.map((m) => m.nome)).toContain("Zeca Inativo");
   });
 
+  it("página absurda (1e21, Infinity, acima do máximo) não derruba a lista: vira a página 1", async () => {
+    await criarMembro(tesoureiro, { nome: "Ana" });
+    for (const pagina of [1e21, Infinity, Number.NaN, 10_001, -3]) {
+      expect((await listarMembros(pastor, { pagina })).itens.map((m) => m.nome)).toEqual(["Ana"]);
+    }
+  });
+
   it("busca parte do nome sem diferenciar acento nem caixa", async () => {
     await criarMembro(tesoureiro, { nome: "João da Silva" });
     await criarMembro(tesoureiro, { nome: "Maria Joana" });

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { obterUsuarioAtual } from "@/lib/auth";
 import { pode } from "@/lib/permissoes";
 import { ITENS_POR_PAGINA_MEMBROS, listarMembros } from "@/lib/services/cadastros";
+import { parsePagina } from "@/lib/paginacao";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -38,7 +39,7 @@ async function Lista({ searchParams }: Props) {
   const sp = await searchParams;
   const busca = um(sp.busca)?.trim() || undefined;
   const inativos = um(sp.inativos) === "1";
-  const pagina = Math.max(1, Number(um(sp.pagina)) || 1);
+  const pagina = parsePagina(um(sp.pagina));
   const { itens, total } = await listarMembros(usuario, { busca, incluirInativos: inativos, pagina });
   const totalPaginas = Math.max(1, Math.ceil(total / ITENS_POR_PAGINA_MEMBROS));
   const podeGerenciar = pode(usuario.papeis, "membros.gerenciar");

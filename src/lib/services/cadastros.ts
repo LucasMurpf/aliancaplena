@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
 import { formatarBRL, parseValorBR } from "@/lib/dinheiro";
+import { parsePagina } from "@/lib/paginacao";
 import { formatarDataBR, parseDataBR } from "@/lib/datas";
 import { NaoEncontrado, RegraDeNegocio, Validacao } from "@/lib/erros";
 import { registrarLog, type Entidade } from "@/lib/log";
@@ -286,7 +287,7 @@ export async function listarMembros(
   opcoes: { incluirInativos?: boolean; pagina?: number; busca?: string } = {},
 ): Promise<{ itens: Membro[]; total: number }> {
   exigir(ator, "membros.ver_nomes");
-  const pagina = Math.max(1, Math.floor(opcoes.pagina ?? 1));
+  const pagina = parsePagina(opcoes.pagina ?? 1);
   const termo = normalizarBusca(opcoes.busca ?? "");
   const where = {
     ...(opcoes.incluirInativos ? {} : { ativo: true }),

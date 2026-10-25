@@ -9,6 +9,7 @@ import { formatarBRL } from "@/lib/dinheiro";
 import { formatarDataBR } from "@/lib/datas";
 import { NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
 import { diffCampos, registrarLog } from "@/lib/log";
+import { PAGINA_MAXIMA } from "@/lib/paginacao";
 import { rastrearServidor } from "./metricas";
 import {
   esquemaData,
@@ -90,7 +91,12 @@ const esquemaFiltro = z.object({
   status: enumDe(StatusLancamento, "Status inválido").optional(),
   membroId: esquemaTextoOpcional,
   busca: esquemaTextoOpcional,
-  pagina: z.number({ error: "Página inválida" }).int("Página inválida").min(1, "Página inválida").default(1),
+  pagina: z
+    .number({ error: "Página inválida" })
+    .int("Página inválida")
+    .min(1, "Página inválida")
+    .max(PAGINA_MAXIMA, "Página inválida")
+    .default(1),
 });
 
 // ---------------------------------------------------- Vínculos e regras

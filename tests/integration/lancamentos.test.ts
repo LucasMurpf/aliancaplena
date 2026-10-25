@@ -354,6 +354,9 @@ describe("leitura", () => {
     expect(p2.itens).toHaveLength(5);
     expect(dataISO(p2.itens[4].dataVencimento)).toBe("2026-01-01");
 
+    await expect(listarLancamentos(pastor, { pagina: 1e21 })).rejects.toBeInstanceOf(Validacao);
+    await expect(listarLancamentos(pastor, { pagina: 10_001 })).rejects.toBeInstanceOf(Validacao);
+
     const todos = await listarLancamentos(pastor, {});
     expect(todos.total).toBe(26);
     expect(todos.somaSaidasPrevistas.toFixed(2)).toBe("7.50");
