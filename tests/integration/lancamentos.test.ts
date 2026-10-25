@@ -345,8 +345,10 @@ describe("leitura", () => {
     const r = await listarLancamentos(pastor, { tipo: "ENTRADA" });
     expect(r.itens).toHaveLength(20);
     expect(r.total).toBe(25);
-    expect(r.somaEntradas.toFixed(2)).toBe("250.00");
-    expect(r.somaSaidas.toFixed(2)).toBe("0.00");
+    expect(r.somaEntradasPrevistas.toFixed(2)).toBe("250.00");
+    expect(r.somaEntradasRealizadas.toFixed(2)).toBe("0.00");
+    expect(r.somaSaidasPrevistas.toFixed(2)).toBe("0.00");
+    expect(r.haPrevistos).toBe(true);
     expect(dataISO(r.itens[0].dataVencimento)).toBe("2026-01-25");
     const p2 = await listarLancamentos(pastor, { tipo: "ENTRADA", pagina: 2 });
     expect(p2.itens).toHaveLength(5);
@@ -354,8 +356,29 @@ describe("leitura", () => {
 
     const todos = await listarLancamentos(pastor, {});
     expect(todos.total).toBe(26);
-    expect(todos.somaSaidas.toFixed(2)).toBe("7.50");
+    expect(todos.somaSaidasPrevistas.toFixed(2)).toBe("7.50");
     await expect(listarLancamentos(eventos, {})).rejects.toBeInstanceOf(NaoAutorizado);
+  });
+
+  it("listar: somas separam realizado de previsto (nunca misturam)", async () => {
+    await criarLancamento(tesoureiro, base({ valor: "100,00", realizado: true, dataRealizacao: "10/03/2026" }));
+    await criarLancamento(tesoureiro, base({ valor: "40,00" }));
+    await criarLancamento(tesoureiro, base({ tipo: "SAIDA", categoriaId: agua.id, valor: "30,00", realizado: true, dataRealizacao: "10/03/2026" }));
+    await criarLancamento(tesoureiro, base({ tipo: "SAIDA", categoriaId: agua.id, valor: "5,00" }));
+    const canc = await criarLancamento(tesoureiro, base({ valor: "999,00", realizado: true, dataRealizacao: "10/03/2026" }));
+    await cancelarLancamento(tesoureiro, canc.id, "Erro");
+
+    const r = await listarLancamentos(pastor, {});
+    expect(r.somaEntradasRealizadas.toFixed(2)).toBe("100.00");
+    expect(r.somaSaidasRealizadas.toFixed(2)).toBe("30.00");
+    expect(r.somaEntradasPrevistas.toFixed(2)).toBe("40.00");
+    expect(r.somaSaidasPrevistas.toFixed(2)).toBe("5.00");
+    expect(r.haPrevistos).toBe(true);
+
+    const so = await listarLancamentos(pastor, { status: "REALIZADO" });
+    expect(so.somaEntradasRealizadas.toFixed(2)).toBe("100.00");
+    expect(so.somaEntradasPrevistas.toFixed(2)).toBe("0.00");
+    expect(so.haPrevistos).toBe(false);
   });
 
   it("listar: período pela data efetiva, cancelados só quando pedidos, busca e filtros", async () => {
@@ -375,7 +398,10 @@ describe("leitura", () => {
 
     const cancelados = await listarLancamentos(tesoureiro, { status: "CANCELADO" });
     expect(cancelados.itens.map((x) => x.id)).toEqual([canc.id]);
-    expect(cancelados.somaEntradas.toFixed(2)).toBe("100.00");
+    // Cancelados não entram em nenhuma soma.
+    expect(cancelados.somaEntradasRealizadas.toFixed(2)).toBe("0.00");
+    expect(cancelados.somaEntradasPrevistas.toFixed(2)).toBe("0.00");
+    expect(cancelados.haPrevistos).toBe(false);
 
     const busca = await listarLancamentos(tesoureiro, { busca: "CULTO" });
     expect(busca.itens.map((x) => x.id)).toEqual([real.id]);

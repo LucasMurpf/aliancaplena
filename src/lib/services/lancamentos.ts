@@ -363,10 +363,25 @@ function montarWhere(f: z.output<typeof esquemaFiltro>): Prisma.LancamentoWhereI
   return { AND: e };
 }
 
+/**
+ * Somas sobre todo o filtro (não só a página), separadas por situação: realizado e previsto
+ * nunca se misturam (o painel usa "Entradas/Saídas" só para o realizado). Cancelados não somam.
+ */
+export type ResultadoListagem = {
+  itens: LancamentoListado[];
+  total: number;
+  somaEntradasRealizadas: Prisma.Decimal;
+  somaSaidasRealizadas: Prisma.Decimal;
+  somaEntradasPrevistas: Prisma.Decimal;
+  somaSaidasPrevistas: Prisma.Decimal;
+  /** Há lançamentos previstos no filtro (a tela só mostra a linha "Previsto" nesse caso). */
+  haPrevistos: boolean;
+};
+
 export async function listarLancamentos(
   ator: UsuarioAtual | null,
   filtro: FiltroLancamentos,
-): Promise<{ itens: LancamentoListado[]; total: number; somaEntradas: Prisma.Decimal; somaSaidas: Prisma.Decimal }> {
+): Promise<ResultadoListagem> {
   const quem = exigir(ator, "financeiro.ver");
   const f = validar(esquemaFiltro, filtro ?? {});
   const where = montarWhere(f);
@@ -381,14 +396,23 @@ export async function listarLancamentos(
       take: ITENS_POR_PAGINA,
     }),
     prisma.lancamento.count({ where }),
-    prisma.lancamento.groupBy({ by: ["tipo"], where, orderBy: { tipo: "asc" }, _sum: { valor: true } }),
+    prisma.lancamento.groupBy({
+      by: ["tipo", "status"],
+      where,
+      orderBy: [{ tipo: "asc" }, { status: "asc" }],
+      _sum: { valor: true },
+      _count: { _all: true },
+    }),
   ]);
-  const soma = (t: TipoMovimento) =>
-    somas.find((s) => s.tipo === t)?._sum?.valor ?? new Prisma.Decimal(0);
+  const grupo = (t: TipoMovimento, st: StatusLancamento) => somas.find((s) => s.tipo === t && s.status === st);
+  const soma = (t: TipoMovimento, st: StatusLancamento) => grupo(t, st)?._sum?.valor ?? new Prisma.Decimal(0);
   return {
     itens: itens.map((l) => mascararMembro(l, quem.papeis)),
     total,
-    somaEntradas: soma(TipoMovimento.ENTRADA),
-    somaSaidas: soma(TipoMovimento.SAIDA),
+    somaEntradasRealizadas: soma(TipoMovimento.ENTRADA, StatusLancamento.REALIZADO),
+    somaSaidasRealizadas: soma(TipoMovimento.SAIDA, StatusLancamento.REALIZADO),
+    somaEntradasPrevistas: soma(TipoMovimento.ENTRADA, StatusLancamento.PREVISTO),
+    somaSaidasPrevistas: soma(TipoMovimento.SAIDA, StatusLancamento.PREVISTO),
+    haPrevistos: somas.some((s) => s.status === StatusLancamento.PREVISTO && s._count._all > 0),
   };
 }

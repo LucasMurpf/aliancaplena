@@ -54,6 +54,20 @@ function linha(l: LancamentoListado): Linha {
   };
 }
 
+/** Rodapé: "Realizado: Entradas R$ X · Saídas R$ Y" (e o mesmo para Previsto). */
+function LinhaSomas(p: { rotulo: string; entradas: string; saidas: string; previsto?: boolean }) {
+  return (
+    <p className={`flex flex-wrap gap-x-2 ${p.previsto ? "text-xs text-slate-600" : ""}`}>
+      <span className="text-slate-800">{p.rotulo}:</span>
+      <span className={p.previsto ? "" : "text-emerald-700"}>Entradas {p.entradas}</span>
+      <span className="text-slate-400" aria-hidden="true">
+        ·
+      </span>
+      <span className={p.previsto ? "" : "text-red-700"}>Saídas {p.saidas}</span>
+    </p>
+  );
+}
+
 function Selo({ l }: { l: Linha }) {
   if (l.cancelado) return <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">Cancelado</span>;
   if (l.previsto) return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">Previsto</span>;
@@ -224,13 +238,21 @@ async function Lista({ searchParams }: Props) {
       )}
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 py-2 pl-4 pr-24 backdrop-blur lg:left-64 lg:pl-8">
-        <p className="flex flex-col text-sm font-semibold tabular-nums sm:flex-row sm:gap-3" aria-live="polite">
-          <span className="text-emerald-700">Entradas {formatarBRL(resultado.somaEntradas)}</span>
-          <span className="hidden text-slate-400 sm:inline" aria-hidden="true">
-            ·
-          </span>
-          <span className="text-red-700">Saídas {formatarBRL(resultado.somaSaidas)}</span>
-        </p>
+        <div className="flex flex-col gap-0.5 text-sm font-semibold tabular-nums" aria-live="polite">
+          <LinhaSomas
+            rotulo="Realizado"
+            entradas={formatarBRL(resultado.somaEntradasRealizadas)}
+            saidas={formatarBRL(resultado.somaSaidasRealizadas)}
+          />
+          {resultado.haPrevistos ? (
+            <LinhaSomas
+              rotulo="Previsto"
+              entradas={formatarBRL(resultado.somaEntradasPrevistas)}
+              saidas={formatarBRL(resultado.somaSaidasPrevistas)}
+              previsto
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   );
