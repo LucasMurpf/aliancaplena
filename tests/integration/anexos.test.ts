@@ -175,6 +175,42 @@ describe("confirmarAnexo", () => {
     expect(st.arquivos.has(chave)).toBe(false);
   });
 
+  it("duas confirmações concorrentes da mesma chave: 1 anexo, objeto preservado", async () => {
+    const st = storageMemoria();
+    const dados = pdf();
+    const { chave } = await prepararAnexo(admin, lanc.id, { nome: "a.pdf", mime: "application/pdf", tamanho: dados.length }, st);
+    st.receberEnvio(chave, dados, "application/pdf");
+    const r = await Promise.allSettled([
+      confirmarAnexo(admin, lanc.id, chave, "a.pdf", st),
+      confirmarAnexo(admin, lanc.id, chave, "a.pdf", st),
+    ]);
+    expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(1);
+    const rejeitada = r.find((x) => x.status === "rejected") as PromiseRejectedResult;
+    expect(rejeitada.reason).toBeInstanceOf(Validacao);
+    expect(rejeitada.reason.message).toBe("Este arquivo já foi anexado");
+    expect(await prisma.anexo.count()).toBe(1);
+    expect(st.arquivos.has(chave)).toBe(true);
+  });
+
+  it("objeto trocado entre a leitura e a gravação: recusa e apaga", async () => {
+    const st = storageMemoria();
+    const dados = pdf();
+    const { chave } = await prepararAnexo(admin, lanc.id, { nome: "a.pdf", mime: "application/pdf", tamanho: dados.length }, st);
+    st.receberEnvio(chave, dados, "application/pdf");
+    let chamadas = 0;
+    const trocador = {
+      ...st,
+      inspecionar: async (c: string) => {
+        const info = await st.inspecionar(c);
+        return ++chamadas >= 2 && info ? { ...info, tamanho: info.tamanho + 1 } : info;
+      },
+      remover: (c: string) => st.remover(c),
+    };
+    await expect(confirmarAnexo(admin, lanc.id, chave, "a.pdf", trocador as typeof st)).rejects.toThrow("O arquivo mudou durante o envio");
+    expect(await prisma.anexo.count()).toBe(0);
+    expect(st.arquivos.has(chave)).toBe(false);
+  });
+
   it("arquivo que não chegou ao storage: recusa sem gravar", async () => {
     const st = storageMemoria();
     const { chave } = await prepararAnexo(admin, lanc.id, { nome: "a.pdf", mime: "application/pdf", tamanho: 10 }, st);

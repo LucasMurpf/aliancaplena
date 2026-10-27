@@ -2,7 +2,7 @@
 // o banco guarda só a chave e os metadados, depois de conferir o arquivo no storage.
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { StatusLancamento } from "@prisma/client";
+import { Prisma, StatusLancamento } from "@prisma/client";
 import type { Anexo } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
@@ -18,6 +18,7 @@ export const SEGUNDOS_URL = 300;
 export const MSG_TIPO = "Tipo de arquivo não permitido";
 export const MSG_TAMANHO = "Arquivo maior que 10 MB";
 export const MSG_ANEXO_NAO_ENCONTRADO = "Anexo não encontrado";
+export const MSG_ALTERADO = "O arquivo mudou durante o envio. Envie de novo.";
 export const MSG_NAO_RECEBIDO = "Arquivo não recebido. Envie de novo.";
 export const MSG_CHAVE_INVALIDA = "Envio de arquivo inválido";
 export const MSG_JA_CONFIRMADO = "Este arquivo já foi anexado";
@@ -128,6 +129,11 @@ export async function confirmarAnexo(
   }
 
   const nomeArquivo = String(nome ?? "").trim().slice(0, 255) || "arquivo";
+  // O objeto pode ter sido sobrescrito entre a primeira leitura e agora: o que vale é o que será gravado.
+  const releitura = await storage.inspecionar(chave);
+  if (!releitura || releitura.tamanho !== info.tamanho || releitura.mime !== info.mime) {
+    return recusar(new Validacao(MSG_ALTERADO, { campo: "anexo", regra: "invalido" }));
+  }
   try {
     return await prisma.$transaction(async (tx) => {
       const anexo = await tx.anexo.create({
@@ -151,6 +157,10 @@ export async function confirmarAnexo(
       return anexo;
     });
   } catch (e) {
+    // Outra confirmação da mesma chave gravou primeiro: o objeto já é daquele anexo, não pode ser apagado.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      throw new Validacao(MSG_JA_CONFIRMADO, { campo: "anexo", regra: "duplicado" });
+    }
     return recusar(e as Error);
   }
 }
