@@ -31,6 +31,17 @@ describe("sanitizarEvento", () => {
   it("números não finitos são descartados", () => {
     expect(sanitizarEvento("erro_validacao", { campo: Infinity, regra: 3 })?.props).toEqual({ regra: 3 });
   });
+  it("eventos da Fase 2 com suas chaves", () => {
+    expect(CATALOGO.relatorio_gerado).toEqual(["relatorio", "formato"]);
+    expect(CATALOGO.recibo_emitido).toEqual(["compartilhado"]);
+    expect(CATALOGO.prestacao_publicada).toEqual(["versao"]);
+    expect(CATALOGO.contagem_registrada).toEqual(["modo", "divergente"]);
+    expect(CATALOGO.indicadores_aberto).toEqual([]);
+    expect(sanitizarEvento("contagem_registrada", { modo: "CULTO", divergente: true, valor: "1" })).toEqual({
+      nome: "contagem_registrada",
+      props: { modo: "CULTO", divergente: true },
+    });
+  });
   it("catálogo cobre os eventos da spec", () => {
     for (const n of ["login", "baixa_dada", "lancamento_cancelado", "transferencia_criada", "anexo_enviado", "membro_cadastrado_rapido", "erro_validacao"]) {
       expect(Object.keys(CATALOGO)).toContain(n);

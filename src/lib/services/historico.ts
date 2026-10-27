@@ -14,6 +14,10 @@ export const ROTULO_ACAO: Record<Acao, string> = {
   LOGIN: "Entrou no sistema",
   LOGIN_FALHOU: "Falha de login",
   INSTALOU: "Instalou o sistema",
+  EMITIU_RECIBO: "Emitiu recibo",
+  PUBLICOU: "Publicou",
+  DESPUBLICOU: "Despublicou",
+  REGISTROU_CONTAGEM: "Registrou contagem",
 };
 
 export const ROTULO_CAMPO: Record<string, string> = {
