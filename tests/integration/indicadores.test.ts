@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Categoria, Conta, Membro } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { UsuarioAtual } from "@/lib/auth";
@@ -32,6 +32,10 @@ let oferta: Categoria;
 let saidaA: Categoria;
 let joao: Membro;
 let maria: Membro;
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 beforeEach(async () => {
   await resetarBanco();
@@ -84,6 +88,9 @@ describe("indicadores", () => {
   });
 
   it("fronteira: 31/10 entra em outubro (TZ=UTC) e 01/11 não; saldoFim do último mês = saldoTotalEm(hoje)", async () => {
+    // O dia de hoje real (27/10/2026) vem antes de 31/10: recusaria a data futura.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-12-15T15:00:00Z"));
     await criarLancamento(tesoureiro, lanc("30/09/2026", { valor: "10,00" }));
     await criarLancamento(tesoureiro, lanc("01/10/2026", { valor: "20,00" }));
     await criarLancamento(tesoureiro, lanc("27/10/2026", { valor: "30,00" }));

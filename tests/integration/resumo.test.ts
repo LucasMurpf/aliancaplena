@@ -37,6 +37,10 @@ let doacao: Categoria;
 let agua: Categoria;
 let luz: Categoria;
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(async () => {
   await resetarBanco();
   admin = await instalar({
@@ -192,6 +196,9 @@ describe("resumoMes", () => {
   });
 
   it("Review Focus 2: realizado em 31/10/2026 entra em outubro e não em novembro (TZ=UTC)", async () => {
+    // O dia de hoje real (27/10/2026) vem antes de 31/10: recusaria a data futura.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-12-15T15:00:00Z"));
     expect(process.env.TZ).toBe("UTC");
     await lanc({ valor: "50,00", dataVencimento: "31/10/2026", dataRealizacao: "31/10/2026" });
     expect((await resumoMes(pastor, 2026, 10)).entradas.toString()).toBe("50");
