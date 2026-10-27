@@ -52,3 +52,23 @@ export function hojeSP(): Date {
   const valor = (tipo: string) => Number(partes.find((p) => p.type === tipo)?.value);
   return new Date(Date.UTC(valor("year"), valor("month") - 1, valor("day")));
 }
+
+const MESES = [
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+];
+
+/** "27 de outubro de 2026", a partir dos componentes UTC. */
+export function dataPorExtenso(d: Date): string {
+  return `${d.getUTCDate()} de ${MESES[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
+}
