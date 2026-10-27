@@ -1,6 +1,6 @@
 // Saldo por conta, resumo do mês e alertas de vencimento (somente leitura).
 import { Prisma, StatusLancamento, StatusTransferencia, TipoMovimento } from "@prisma/client";
-import type { TipoConta } from "@prisma/client";
+import type { PrismaClient, TipoConta } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
@@ -88,6 +88,38 @@ export async function saldoPorConta(ator: UsuarioAtual | null): Promise<SaldoCon
     }))
     .filter((c) => c.ativa || !c.saldo.isZero())
     .map(({ contaId, nome, tipo, saldo }) => ({ contaId, nome, tipo, saldo }));
+}
+
+/**
+ * Saldo de uma conta, com a mesma fórmula de `saldoPorConta`, sem checar permissão:
+ * uso interno dos serviços (aceita o cliente da transação). Conta inexistente → zero.
+ */
+export async function saldoDaConta(
+  db: Prisma.TransactionClient | PrismaClient,
+  contaId: string,
+): Promise<Prisma.Decimal> {
+  // Sequencial: o cliente da transação usa uma única conexão.
+  const conta = await db.conta.findUnique({ where: { id: contaId }, select: { saldoInicial: true } });
+  const lancamentos = await db.lancamento.groupBy({
+    by: ["tipo"],
+    where: { contaId, status: StatusLancamento.REALIZADO },
+    orderBy: { tipo: "asc" },
+    _sum: { valor: true },
+  });
+  const enviadas = await db.transferencia.aggregate({
+    where: { contaOrigemId: contaId, status: StatusTransferencia.ATIVA },
+    _sum: { valor: true },
+  });
+  const recebidas = await db.transferencia.aggregate({
+    where: { contaDestinoId: contaId, status: StatusTransferencia.ATIVA },
+    _sum: { valor: true },
+  });
+  let saldo = conta?.saldoInicial ?? ZERO();
+  for (const l of lancamentos) {
+    const v = ouZero(l._sum?.valor);
+    saldo = l.tipo === TipoMovimento.ENTRADA ? saldo.add(v) : saldo.sub(v);
+  }
+  return saldo.add(ouZero(recebidas._sum.valor)).sub(ouZero(enviadas._sum.valor));
 }
 
 export async function saldoTotal(ator: UsuarioAtual | null): Promise<Prisma.Decimal> {
