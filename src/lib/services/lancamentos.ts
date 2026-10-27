@@ -6,8 +6,8 @@ import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
 import { pode } from "@/lib/permissoes";
 import { formatarBRL } from "@/lib/dinheiro";
-import { formatarDataBR } from "@/lib/datas";
-import { NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
+import { formatarDataBR, hojeSP } from "@/lib/datas";
+import { NaoEncontrado, RegraDeNegocio, Validacao } from "@/lib/erros";
 import { diffCampos, registrarLog } from "@/lib/log";
 import { PAGINA_MAXIMA } from "@/lib/paginacao";
 import { rastrearServidor } from "./metricas";
@@ -24,6 +24,7 @@ import {
 
 export const MSG_LANCAMENTO_NAO_ENCONTRADO = "Lançamento não encontrado";
 export const MSG_CANCELADO = "Lançamento cancelado não pode ser alterado";
+export const MSG_DATA_FUTURA = "A data de realização não pode ser futura";
 export const MSG_JA_REALIZADO = "Lançamento já realizado";
 export const MSG_CONFLITO = "O lançamento foi alterado por outra pessoa. Recarregue e tente novamente";
 /** Formulário de edição aberto antes de outra alteração (versão carregada ≠ atual). */
@@ -148,6 +149,13 @@ function situacao(v: DadosValidos, anterior?: Lancamento) {
   };
 }
 
+/** A realização é um fato já ocorrido: não pode estar no futuro (hoje vale). */
+function recusarDataFutura(data: Date | null | undefined): void {
+  if (data && data.getTime() > hojeSP().getTime()) {
+    throw new Validacao(MSG_DATA_FUTURA, { campo: "dataRealizacao", regra: "futura" });
+  }
+}
+
 type CamposLegiveis = Pick<Lancamento, "tipo" | "valor" | "descricao" | "dataVencimento" | "dataRealizacao" | "status">;
 
 /** Valores como aparecem no histórico (nomes, R$, dd/mm/aaaa). */
@@ -207,6 +215,7 @@ async function gravarSeInalterado(
 export async function criarLancamento(ator: UsuarioAtual | null, d: DadosLancamento): Promise<Lancamento> {
   const quem = exigir(ator, "financeiro.lancar");
   const v = validar(esquemaDados, d, { campos: CAMPOS_FORM });
+  recusarDataFutura(situacao(v).dataRealizacao);
   return prisma.$transaction(async (tx) => {
     const nomes = await conferirVinculos(tx, v);
     const l = await tx.lancamento.create({
@@ -265,6 +274,8 @@ export async function editarLancamento(
       throw new RegraDeNegocio(MSG_VERSAO_ANTIGA, { regra: "versao_antiga" });
     }
     const sit = situacao(v, atual);
+    // Lançamento antigo já realizado com data futura continua editável se a data não mudou.
+    if (sit.dataRealizacao?.getTime() !== atual.dataRealizacao?.getTime()) recusarDataFutura(sit.dataRealizacao);
     await recusarSeMudaRecibo(tx, atual, v, sit);
     const nomesAntes = await nomesDosVinculos(tx, atual);
     const nomesDepois = await conferirVinculos(tx, v, atual);
@@ -334,6 +345,7 @@ async function nomesDosVinculos(tx: Prisma.TransactionClient, l: Lancamento): Pr
 export async function darBaixa(ator: UsuarioAtual | null, id: string, dataRealizacao: string): Promise<Lancamento> {
   const quem = exigir(ator, "financeiro.lancar");
   const data = validar(esquemaData, dataRealizacao, { campo: "dataRealizacao" });
+  recusarDataFutura(data);
   return prisma.$transaction(async (tx) => {
     const atual = await carregarAlteravel(tx, id);
     if (atual.status === StatusLancamento.REALIZADO) throw new RegraDeNegocio(MSG_JA_REALIZADO);

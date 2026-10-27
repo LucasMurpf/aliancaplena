@@ -20,6 +20,7 @@ import {
   definirContaAtiva,
   definirMembroAtivo,
 } from "@/lib/services/cadastros";
+import { formatarDataBR, hojeSP } from "@/lib/datas";
 import { instalar } from "@/lib/services/instalacao";
 import { criarUsuario } from "@/lib/services/usuarios";
 import { resetarBanco } from "../helpers/db";
@@ -468,5 +469,44 @@ describe("concorrência", () => {
     ]);
     expect(rs.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect((await logs(l.id)).filter((x) => x.acao === "DEU_BAIXA")).toHaveLength(1);
+  });
+});
+
+describe("data de realização futura", () => {
+  const MSG = "A data de realização não pode ser futura";
+  const amanha = () => formatarDataBR(new Date(hojeSP().getTime() + 24 * 3600 * 1000));
+  const hoje = () => formatarDataBR(hojeSP());
+  const esperado = { message: MSG, campo: "dataRealizacao", regra: "futura" };
+
+  it("criar recusa data futura e aceita hoje", async () => {
+    await expect(
+      criarLancamento(tesoureiro, base({ realizado: true, dataRealizacao: amanha() })),
+    ).rejects.toMatchObject(esperado);
+    await expect(
+      criarLancamento(tesoureiro, base({ realizado: true, dataRealizacao: hoje() })),
+    ).resolves.toBeDefined();
+  });
+
+  it("criar realizado sem data usa o vencimento: vencimento futuro é recusado", async () => {
+    await expect(
+      criarLancamento(tesoureiro, base({ dataVencimento: amanha(), realizado: true })),
+    ).rejects.toMatchObject(esperado);
+    await expect(criarLancamento(tesoureiro, base({ dataVencimento: amanha() }))).resolves.toBeDefined();
+  });
+
+  it("editar recusa data futura e aceita hoje", async () => {
+    const l = await criarLancamento(tesoureiro, base());
+    await expect(
+      editarLancamento(tesoureiro, l.id, base({ realizado: true, dataRealizacao: amanha() })),
+    ).rejects.toMatchObject(esperado);
+    await expect(
+      editarLancamento(tesoureiro, l.id, base({ realizado: true, dataRealizacao: hoje() })),
+    ).resolves.toBeDefined();
+  });
+
+  it("darBaixa recusa data futura e aceita hoje", async () => {
+    const l = await criarLancamento(tesoureiro, base());
+    await expect(darBaixa(tesoureiro, l.id, amanha())).rejects.toMatchObject(esperado);
+    await expect(darBaixa(tesoureiro, l.id, hoje())).resolves.toBeDefined();
   });
 });
