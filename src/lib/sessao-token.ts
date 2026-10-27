@@ -31,10 +31,11 @@ function chaveSessao(): Uint8Array {
   return new TextEncoder().encode(segredo);
 }
 
-export async function criarTokenSessao(usuarioId: string): Promise<string> {
+/** `versao` é `Usuario.versaoSessao`: mudar a versão no banco invalida os tokens já emitidos. */
+export async function criarTokenSessao(usuarioId: string, versao: number): Promise<string> {
   const chave = chaveSessao();
   const agora = Math.floor(Date.now() / 1000);
-  return new SignJWT({})
+  return new SignJWT({ v: versao })
     .setProtectedHeader({ alg: ALGORITMO })
     .setSubject(usuarioId)
     .setIssuedAt(agora)
@@ -42,8 +43,8 @@ export async function criarTokenSessao(usuarioId: string): Promise<string> {
     .sign(chave);
 }
 
-/** Devolve o id do usuário, ou `null` se o token for inválido, adulterado ou expirado. Nunca lança por token ruim. */
-export async function lerTokenSessao(token: string): Promise<{ usuarioId: string } | null> {
+/** Devolve o id e a versão (token antigo sem `v` → 0), ou `null` se o token for inválido, adulterado ou expirado. Nunca lança por token ruim. */
+export async function lerTokenSessao(token: string): Promise<{ usuarioId: string; versao: number } | null> {
   const chave = chaveSessao();
   try {
     const { payload } = await jwtVerify(token, chave, {
@@ -51,7 +52,8 @@ export async function lerTokenSessao(token: string): Promise<{ usuarioId: string
       currentDate: new Date(),
     });
     if (typeof payload.sub !== "string" || payload.sub === "") return null;
-    return { usuarioId: payload.sub };
+    const v = payload.v;
+    return { usuarioId: payload.sub, versao: typeof v === "number" && Number.isInteger(v) ? v : 0 };
   } catch {
     return null;
   }

@@ -42,12 +42,29 @@ describe("token de sessão", () => {
   });
 
   it("token válido devolve o id do usuário", async () => {
-    const token = await criarTokenSessao("usuario-1");
-    expect(await lerTokenSessao(token)).toEqual({ usuarioId: "usuario-1" });
+    const token = await criarTokenSessao("usuario-1", 0);
+    expect(await lerTokenSessao(token)).toEqual({ usuarioId: "usuario-1", versao: 0 });
+  });
+
+  it("o token carrega a versão e a mantém ao ser reemitido (como faz o proxy)", async () => {
+    const token = await criarTokenSessao("usuario-1", 7);
+    const lido = await lerTokenSessao(token);
+    expect(lido).toEqual({ usuarioId: "usuario-1", versao: 7 });
+    const reemitido = await criarTokenSessao(lido!.usuarioId, lido!.versao);
+    expect(await lerTokenSessao(reemitido)).toEqual({ usuarioId: "usuario-1", versao: 7 });
+  });
+
+  it("token antigo sem v → versão 0", async () => {
+    const antigo = await new SignJWT({})
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject("usuario-1")
+      .setExpirationTime(Math.floor(Date.now() / 1000) + 60)
+      .sign(new TextEncoder().encode(SEGREDO));
+    expect(await lerTokenSessao(antigo)).toEqual({ usuarioId: "usuario-1", versao: 0 });
   });
 
   it("token adulterado → null", async () => {
-    const token = await criarTokenSessao("usuario-1");
+    const token = await criarTokenSessao("usuario-1", 0);
     const [cab, corpo, ass] = token.split(".");
     const corpoFalso = Buffer.from(JSON.stringify({ sub: "admin", exp: 9999999999 })).toString("base64url");
     expect(await lerTokenSessao(`${cab}.${corpoFalso}.${ass}`)).toBeNull();
@@ -63,7 +80,7 @@ describe("token de sessão", () => {
   });
 
   it("token assinado com outro segredo → null", async () => {
-    const token = await criarTokenSessao("usuario-1");
+    const token = await criarTokenSessao("usuario-1", 0);
     process.env.SESSION_SECRET = "outro-segredo-tambem-com-mais-de-32-caracteres";
     expect(await lerTokenSessao(token)).toBeNull();
   });
@@ -83,10 +100,10 @@ describe("token de sessão", () => {
   it("token criado há 14 min é válido; há 16 min → null", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-24T12:00:00Z"));
-    const token = await criarTokenSessao("usuario-1");
+    const token = await criarTokenSessao("usuario-1", 0);
 
     vi.setSystemTime(new Date("2026-10-24T12:14:00Z"));
-    expect(await lerTokenSessao(token)).toEqual({ usuarioId: "usuario-1" });
+    expect(await lerTokenSessao(token)).toEqual({ usuarioId: "usuario-1", versao: 0 });
 
     vi.setSystemTime(new Date("2026-10-24T12:16:00Z"));
     expect(await lerTokenSessao(token)).toBeNull();
@@ -94,9 +111,9 @@ describe("token de sessão", () => {
 
   it("SESSION_SECRET ausente ou curto → erro claro ao criar o token", async () => {
     delete process.env.SESSION_SECRET;
-    await expect(criarTokenSessao("usuario-1")).rejects.toThrow(/SESSION_SECRET/);
+    await expect(criarTokenSessao("usuario-1", 0)).rejects.toThrow(/SESSION_SECRET/);
     process.env.SESSION_SECRET = "curto";
-    await expect(criarTokenSessao("usuario-1")).rejects.toThrow(/SESSION_SECRET/);
+    await expect(criarTokenSessao("usuario-1", 0)).rejects.toThrow(/SESSION_SECRET/);
   });
 });
 
@@ -128,6 +145,15 @@ describe("carregarUsuario", () => {
 
   it("usuário inexistente → null", async () => {
     expect(await carregarUsuario("nao-existe")).toBeNull();
+  });
+
+  it("versão diferente da do banco → null; igual ou omitida → usuário", async () => {
+    const u = await prisma.usuario.create({
+      data: { nome: "V", email: "v@igreja.org", senhaHash: "x", versaoSessao: 2 },
+    });
+    expect(await carregarUsuario(u.id, 1)).toBeNull();
+    expect(await carregarUsuario(u.id, 2)).not.toBeNull();
+    expect(await carregarUsuario(u.id)).not.toBeNull();
   });
 });
 

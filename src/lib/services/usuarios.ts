@@ -150,6 +150,7 @@ export async function atualizarUsuario(
         await tx.usuario.update({ where: { id }, data: { nome: depois.nome, email: depois.email } });
       }
       if (mudou.papeis && v.papeis) {
+        await tx.usuario.update({ where: { id }, data: { versaoSessao: { increment: 1 } } });
         await tx.usuarioPapel.deleteMany({ where: { usuarioId: id } });
         await tx.usuarioPapel.createMany({ data: v.papeis.map((papel) => ({ usuarioId: id, papel })) });
         await garantirAdminAtivo(tx);
@@ -182,7 +183,10 @@ export async function definirAtivo(ator: UsuarioAtual | null, id: string, ativo:
     if (!atual) throw new NaoEncontrado(MSG_NAO_ENCONTRADO);
     if (atual.ativo === ativo) return;
 
-    await tx.usuario.update({ where: { id }, data: { ativo } });
+    await tx.usuario.update({
+      where: { id },
+      data: { ativo, ...(ativo ? {} : { versaoSessao: { increment: 1 } }) },
+    });
     if (!ativo) await garantirAdminAtivo(tx);
     await registrarLog(tx, {
       usuarioId: quem.id,
@@ -201,7 +205,7 @@ export async function redefinirSenha(ator: UsuarioAtual | null, id: string, nova
   await prisma.$transaction(async (tx) => {
     const atual = await tx.usuario.findUnique({ where: { id }, select: { id: true } });
     if (!atual) throw new NaoEncontrado(MSG_NAO_ENCONTRADO);
-    await tx.usuario.update({ where: { id }, data: { senhaHash } });
+    await tx.usuario.update({ where: { id }, data: { senhaHash, versaoSessao: { increment: 1 } } });
     await registrarLog(tx, {
       usuarioId: quem.id,
       entidade: "Usuario",

@@ -1,6 +1,7 @@
 // Proxy (antigo middleware, Next 16): protege as rotas e renova a sessão (expiração deslizante).
 // Públicas: /login, /instalacao e arquivos estáticos (excluídos pelo matcher).
-// Roda só com `jose` (sessao-token), sem Prisma: a checagem de usuário ativo fica no layout.
+// Roda só com `jose` (sessao-token), sem Prisma: a checagem de usuário ativo e da versão da sessão fica no layout.
+// Ao renovar, reemite o token com a mesma versão `v` que leu (quem decide se ela ainda vale é o banco).
 import { NextResponse, type NextRequest } from "next/server";
 import { NOME_COOKIE_SESSAO, criarTokenSessao, lerTokenSessao, opcoesCookieSessao } from "@/lib/sessao-token";
 
@@ -28,7 +29,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   if (!token) return ehApi ? NextResponse.next() : paraLogin(request);
 
-  let sessao: { usuarioId: string } | null;
+  let sessao: { usuarioId: string; versao: number } | null;
   try {
     sessao = await lerTokenSessao(token);
   } catch {
@@ -44,7 +45,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const ehAction = request.headers.has("next-action");
   if (!ehPrefetch && !ehAction) {
     try {
-      resposta.cookies.set(NOME_COOKIE_SESSAO, await criarTokenSessao(sessao.usuarioId), opcoesCookieSessao());
+      resposta.cookies.set(NOME_COOKIE_SESSAO, await criarTokenSessao(sessao.usuarioId, sessao.versao), opcoesCookieSessao());
     } catch {
       return ehApi ? NextResponse.next() : paraLogin(request);
     }

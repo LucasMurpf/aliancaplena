@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { apagarCookieSessao, criarTokenSessao, gravarCookieSessao, obterUsuarioAtual } from "@/lib/auth";
+import { apagarCookieSessao, emitirTokenSessao, gravarCookieSessao, obterUsuarioAtual } from "@/lib/auth";
 import { mensagemDeErro, type EstadoForm } from "@/lib/acoes";
 
 /** Reemite o cookie de sessão com novo prazo (botão Continuar e atividade do usuário). */
@@ -9,7 +9,7 @@ export async function renovarSessao(): Promise<EstadoForm> {
   try {
     const usuario = await obterUsuarioAtual();
     if (!usuario) return { erro: "Sessão expirada" };
-    await gravarCookieSessao(await criarTokenSessao(usuario.id));
+    await gravarCookieSessao(await emitirTokenSessao(usuario.id));
     return { ok: true };
   } catch (e) {
     return { erro: mensagemDeErro(e) };

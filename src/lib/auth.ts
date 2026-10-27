@@ -9,7 +9,7 @@ import type { Papel } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { NaoAutorizado } from "@/lib/erros";
 import { pode, type Permissao } from "@/lib/permissoes";
-import { NOME_COOKIE_SESSAO, lerTokenSessao, opcoesCookieSessao } from "@/lib/sessao-token";
+import { NOME_COOKIE_SESSAO, criarTokenSessao, lerTokenSessao, opcoesCookieSessao } from "@/lib/sessao-token";
 
 export {
   NOME_COOKIE_SESSAO,
@@ -31,13 +31,17 @@ export function conferirSenha(s: string, hash: string): Promise<boolean> {
   return bcrypt.compare(s, hash);
 }
 
-/** `null` se o usuário não existe ou está inativo. */
-export async function carregarUsuario(usuarioId: string): Promise<UsuarioAtual | null> {
+/**
+ * `null` se o usuário não existe ou está inativo. Com `versao` (a do token), também `null`
+ * quando difere de `Usuario.versaoSessao` (senha redefinida, papéis mudados, usuário inativado).
+ */
+export async function carregarUsuario(usuarioId: string, versao?: number): Promise<UsuarioAtual | null> {
   const u = await prisma.usuario.findUnique({
     where: { id: usuarioId },
-    select: { id: true, nome: true, email: true, ativo: true, papeis: { select: { papel: true } } },
+    select: { id: true, nome: true, email: true, ativo: true, versaoSessao: true, papeis: { select: { papel: true } } },
   });
   if (!u || !u.ativo) return null;
+  if (versao !== undefined && versao !== u.versaoSessao) return null;
   return { id: u.id, nome: u.nome, email: u.email, papeis: u.papeis.map((p) => p.papel) };
 }
 
@@ -45,6 +49,12 @@ export async function carregarUsuario(usuarioId: string): Promise<UsuarioAtual |
 export function exigir(usuario: UsuarioAtual | null, p: Permissao): UsuarioAtual {
   if (!usuario || !pode(usuario.papeis, p)) throw new NaoAutorizado();
   return usuario;
+}
+
+/** Token novo com a versão de sessão atual do usuário (login, instalação, renovação). */
+export async function emitirTokenSessao(usuarioId: string): Promise<string> {
+  const u = await prisma.usuario.findUniqueOrThrow({ where: { id: usuarioId }, select: { versaoSessao: true } });
+  return criarTokenSessao(usuarioId, u.versaoSessao);
 }
 
 // --- Wrappers finos sobre next/headers (só funcionam dentro de uma requisição) ---
@@ -55,7 +65,7 @@ export async function obterUsuarioAtual(): Promise<UsuarioAtual | null> {
   // Validar expiração usa a hora atual: isso só pode rodar em requisição, nunca no prerender.
   await connection();
   const sessao = await lerTokenSessao(token);
-  return sessao ? carregarUsuario(sessao.usuarioId) : null;
+  return sessao ? carregarUsuario(sessao.usuarioId, sessao.versao) : null;
 }
 
 /** Só em Server Functions ou Route Handlers. */
