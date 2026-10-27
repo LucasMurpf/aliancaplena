@@ -74,7 +74,7 @@ export function valorPorExtenso(valor: Prisma.Decimal | string): string {
   } catch {
     throw new Validacao("Valor inválido");
   }
-  if (decimal.lte(0) || decimal.gt(VALOR_MAXIMO) || decimal.decimalPlaces() > 2) {
+  if (!decimal.isFinite() || decimal.lte(0) || decimal.gt(VALOR_MAXIMO) || decimal.decimalPlaces() > 2) {
     throw new Validacao("Valor fora do intervalo para extenso");
   }
 

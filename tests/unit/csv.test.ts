@@ -33,6 +33,21 @@ describe("gerarCsv", () => {
     expect(csv).not.toContain("'-120,00");
   });
 
+  test("valor com quebra de linha é entre aspas", () => {
+    const csv = gerarCsv(colunas, [{ nome: "linha1\nlinha2", valor: null, data: null }]);
+    expect(csv).toContain('"linha1\nlinha2"');
+  });
+
+  test("Decimal não finito lança erro em vez de escrever NaN", () => {
+    const linhas = [{ nome: "x", valor: new Prisma.Decimal("NaN"), data: null }];
+    expect(() => gerarCsv(colunas, linhas)).toThrow(Error);
+  });
+
+  test("Date inválida lança erro em vez de escrever NaN", () => {
+    const linhas = [{ nome: "x", valor: null, data: new Date("nao-e-data") }];
+    expect(() => gerarCsv(colunas, linhas)).toThrow(Error);
+  });
+
   test("Date sai como dd/mm/aaaa e null vira vazio", () => {
     const csv = gerarCsv(colunas, [{ nome: "x", valor: null, data: new Date(Date.UTC(2026, 9, 31)) }]);
     expect(csv).toContain("x;;31/10/2026");

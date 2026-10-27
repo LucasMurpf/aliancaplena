@@ -19,6 +19,11 @@ describe("valorPorExtenso", () => {
     ["0.50", "cinquenta centavos"],
     ["1200000", "um milhão e duzentos mil reais"],
     ["1000000000", "um bilhão de reais"],
+    ["101", "cento e um reais"],
+    ["1010", "mil e dez reais"],
+    ["1000001", "um milhão e um reais"],
+    ["21000000", "vinte e um milhões de reais"],
+    ["1000000000.01", "um bilhão de reais e um centavo"],
   ])("valorPorExtenso(%s) = %s", (entrada, esperado) => {
     expect(valorPorExtenso(entrada)).toBe(esperado);
   });
@@ -34,7 +39,7 @@ describe("valorPorExtenso", () => {
     );
   });
 
-  test.each([["0"], ["-1"], ["-0.01"], ["10000000000"], ["9999999999.991"]])(
+  test.each([["0"], ["-1"], ["-0.01"], ["10000000000"], ["9999999999.991"], ["NaN"], ["Infinity"]])(
     "rejeita valor fora do intervalo (%s)",
     (entrada) => {
       expect(() => valorPorExtenso(entrada)).toThrow(Validacao);

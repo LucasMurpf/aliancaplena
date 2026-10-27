@@ -20,8 +20,14 @@ function celulaTexto(texto: string): string {
 /** Valor de célula: Decimal sai numérico (sem apóstrofo), Date como dd/mm/aaaa, nulo vira vazio. */
 function celula(valor: string | Prisma.Decimal | Date | null | undefined): string {
   if (valor === null || valor === undefined) return "";
-  if (valor instanceof Prisma.Decimal) return valor.toFixed(2).replace(".", ",");
-  if (valor instanceof Date) return formatarDataBR(valor);
+  if (valor instanceof Prisma.Decimal) {
+    if (!valor.isFinite()) throw new Error("Valor decimal não finito no CSV");
+    return valor.toFixed(2).replace(".", ",");
+  }
+  if (valor instanceof Date) {
+    if (Number.isNaN(valor.getTime())) throw new Error("Data inválida no CSV");
+    return formatarDataBR(valor);
+  }
   return celulaTexto(valor);
 }
 
