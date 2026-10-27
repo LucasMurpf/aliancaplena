@@ -5,7 +5,14 @@ import { prisma } from "@/lib/db";
 import type { UsuarioAtual } from "@/lib/auth";
 import { NaoAutorizado, NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
 import { dadosRecibo, emitirRecibo } from "@/lib/services/recibos";
-import { cancelarLancamento, criarLancamento, type DadosLancamento } from "@/lib/services/lancamentos";
+import {
+  MSG_RECIBO_EMITIDO,
+  cancelarLancamento,
+  criarLancamento,
+  editarLancamento,
+  type DadosLancamento,
+} from "@/lib/services/lancamentos";
+import { criarConta } from "@/lib/services/cadastros";
 import { criarMembro, definirMembroAtivo } from "@/lib/services/cadastros";
 import { instalar } from "@/lib/services/instalacao";
 import { criarUsuario } from "@/lib/services/usuarios";
@@ -239,5 +246,67 @@ describe("dadosRecibo", () => {
     await expect(dadosRecibo(eventos, l.id)).rejects.toBeInstanceOf(NaoAutorizado);
     sem.verNomes = true;
     await expect(dadosRecibo(tesoureiro, l.id)).rejects.toBeInstanceOf(NaoAutorizado);
+  });
+});
+
+describe("edição de lançamento com recibo emitido", () => {
+  const erro = async (p: Promise<unknown>) => {
+    const e = await p.then(
+      () => null,
+      (x: unknown) => x,
+    );
+    expect(e).toBeInstanceOf(RegraDeNegocio);
+    const r = e as RegraDeNegocio;
+    expect(r.message).toBe(MSG_RECIBO_EMITIDO);
+    return { campo: r.campo, regra: r.regra };
+  };
+
+  it("recusa mudar valor, tipo/categoria, membro, data de realização ou voltar a previsto", async () => {
+    const maria = await criarMembro(admin, { nome: "Maria" });
+    const l = await criarLancamento(tesoureiro, lanc());
+    const antes = await emitirRecibo(tesoureiro, l.id);
+
+    expect(await erro(editarLancamento(tesoureiro, l.id, lanc({ valor: "200,00" })))).toEqual({ campo: "valor", regra: "recibo_emitido" });
+    expect(await erro(editarLancamento(tesoureiro, l.id, lanc({ membroId: maria.id })))).toEqual({ campo: "membro", regra: "recibo_emitido" });
+    expect(await erro(editarLancamento(tesoureiro, l.id, lanc({ categoriaId: oferta.id, membroId: null })))).toEqual({
+      campo: "categoria",
+      regra: "recibo_emitido",
+    });
+    expect(await erro(editarLancamento(tesoureiro, l.id, lanc({ dataRealizacao: "11/03/2026" })))).toEqual({
+      campo: "dataRealizacao",
+      regra: "recibo_emitido",
+    });
+    expect(await erro(editarLancamento(tesoureiro, l.id, lanc({ realizado: false, dataRealizacao: undefined })))).toEqual({
+      campo: "realizado",
+      regra: "recibo_emitido",
+    });
+    expect(await dadosRecibo(tesoureiro, l.id)).toEqual(antes);
+  });
+
+  it("permite mudar descrição, conta e vencimento; o recibo não muda", async () => {
+    const banco = await criarConta(admin, { nome: "Banco", tipo: "BANCO", saldoInicial: "0" });
+    const l = await criarLancamento(tesoureiro, lanc());
+    const antes = await emitirRecibo(tesoureiro, l.id);
+    const salvo = await editarLancamento(
+      tesoureiro,
+      l.id,
+      lanc({ descricao: "Dízimo de março", contaId: banco.id, dataVencimento: "05/03/2026", dataRealizacao: undefined }),
+    );
+    expect(salvo.descricao).toBe("Dízimo de março");
+    expect(salvo.contaId).toBe(banco.id);
+    expect(await dadosRecibo(tesoureiro, l.id)).toEqual(antes);
+  });
+
+  it("sem recibo, a edição continua livre", async () => {
+    const l = await criarLancamento(tesoureiro, lanc());
+    const salvo = await editarLancamento(tesoureiro, l.id, lanc({ valor: "200,00" }));
+    expect(salvo.valor.toFixed(2)).toBe("200.00");
+  });
+
+  it("cancelar depois da emissão continua permitido", async () => {
+    const l = await criarLancamento(tesoureiro, lanc());
+    await emitirRecibo(tesoureiro, l.id);
+    await cancelarLancamento(tesoureiro, l.id, "lançado em duplicidade");
+    expect((await dadosRecibo(tesoureiro, l.id)).cancelado).toBe(true);
   });
 });

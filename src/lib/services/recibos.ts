@@ -9,13 +9,10 @@ import { NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
 import { valorPorExtenso } from "@/lib/extenso";
 import { registrarLog } from "@/lib/log";
 import { MSG_LANCAMENTO_NAO_ENCONTRADO } from "./lancamentos";
-import { esquemaId, validar } from "./comum";
+import { esquemaId, TRAVA_RECIBO, validar } from "./comum";
 
 export const MSG_RECIBO_INDISPONIVEL = "Recibo disponível apenas para contribuições nominais realizadas";
 export const MSG_RECIBO_NAO_ENCONTRADO = "Recibo não encontrado";
-
-/** Chave do `pg_advisory_xact_lock` que serializa a numeração dos recibos. */
-const TRAVA_RECIBO = 4244;
 
 export type DadosRecibo = {
   numeroFormatado: string;

@@ -18,6 +18,7 @@ import {
   esquemaMotivo,
   esquemaTextoOpcional,
   esquemaValor,
+  TRAVA_RECIBO,
   validar,
 } from "./comum";
 
@@ -27,6 +28,8 @@ export const MSG_JA_REALIZADO = "Lançamento já realizado";
 export const MSG_CONFLITO = "O lançamento foi alterado por outra pessoa. Recarregue e tente novamente";
 /** Formulário de edição aberto antes de outra alteração (versão carregada ≠ atual). */
 export const MSG_VERSAO_ANTIGA = "Este lançamento foi alterado por outra pessoa. Recarregue a página.";
+export const MSG_RECIBO_EMITIDO =
+  "Este lançamento já tem recibo emitido. Para corrigir valor, membro, categoria, tipo ou data, cancele-o e lance de novo.";
 export const NOME_MASCARADO = "Contribuição nominal";
 export const ITENS_POR_PAGINA = 20;
 
@@ -261,6 +264,8 @@ export async function editarLancamento(
     if (carregada && carregada.getTime() !== atual.atualizadoEm.getTime()) {
       throw new RegraDeNegocio(MSG_VERSAO_ANTIGA, { regra: "versao_antiga" });
     }
+    const sit = situacao(v, atual);
+    await recusarSeMudaRecibo(tx, atual, v, sit);
     const nomesAntes = await nomesDosVinculos(tx, atual);
     const nomesDepois = await conferirVinculos(tx, v, atual);
     const novo = {
@@ -271,7 +276,7 @@ export async function editarLancamento(
       contaId: v.contaId,
       membroId: v.membroId,
       dataVencimento: v.dataVencimento,
-      ...situacao(v, atual),
+      ...sit,
     };
     const mudancas = diffCampos(textoLancamento(atual, nomesAntes), textoLancamento(novo, nomesDepois));
     if (mudancas.length === 0) return atual;
@@ -289,6 +294,32 @@ export async function editarLancamento(
     }
     return salvo;
   });
+}
+
+/**
+ * O recibo emitido usa valor, membro, categoria, tipo e data do lançamento: com recibo, esses
+ * campos (e a volta a previsto) ficam travados. Toma a trava dos recibos para não cruzar com
+ * uma emissão em andamento.
+ */
+async function recusarSeMudaRecibo(
+  tx: Prisma.TransactionClient,
+  atual: Lancamento,
+  v: DadosValidos,
+  sit: ReturnType<typeof situacao>,
+): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${TRAVA_RECIBO})`;
+  const recibo = await tx.recibo.findUnique({ where: { lancamentoId: atual.id }, select: { id: true } });
+  if (!recibo) return;
+  const mudou: [string, boolean][] = [
+    ["tipo", v.tipo !== atual.tipo],
+    ["valor", !v.valor.equals(atual.valor)],
+    ["categoria", v.categoriaId !== atual.categoriaId],
+    ["membro", v.membroId !== atual.membroId],
+    ["realizado", sit.status !== atual.status],
+    ["dataRealizacao", sit.dataRealizacao?.getTime() !== atual.dataRealizacao?.getTime()],
+  ];
+  const campo = mudou.find(([, m]) => m)?.[0];
+  if (campo) throw new RegraDeNegocio(MSG_RECIBO_EMITIDO, { campo, regra: "recibo_emitido" });
 }
 
 async function nomesDosVinculos(tx: Prisma.TransactionClient, l: Lancamento): Promise<Vinculos> {
