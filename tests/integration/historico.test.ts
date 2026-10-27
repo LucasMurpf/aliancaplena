@@ -4,10 +4,10 @@ import { prisma } from "@/lib/db";
 import type { UsuarioAtual } from "@/lib/auth";
 import { NaoAutorizado } from "@/lib/erros";
 import { historicoDe, ROTULO_ACAO, ROTULO_CAMPO } from "@/lib/services/historico";
-import { criarLancamento, editarLancamento, type DadosLancamento } from "@/lib/services/lancamentos";
-import { criarMembro } from "@/lib/services/cadastros";
+import { cancelarLancamento, criarLancamento, editarLancamento, type DadosLancamento } from "@/lib/services/lancamentos";
+import { atualizarConta, criarMembro } from "@/lib/services/cadastros";
 import { instalar } from "@/lib/services/instalacao";
-import { criarUsuario } from "@/lib/services/usuarios";
+import { atualizarUsuario, criarUsuario } from "@/lib/services/usuarios";
 import { resetarBanco } from "../helpers/db";
 
 let admin: UsuarioAtual;
@@ -97,6 +97,35 @@ describe("historicoDe", () => {
       })),
     });
     expect(await historicoDe(tesoureiro, "Lancamento", l.id)).toHaveLength(200);
+  });
+});
+
+describe("valores legíveis", () => {
+  it("traduz enums de status e tipo no histórico do lançamento", async () => {
+    const l = await criarLancamento(tesoureiro, base());
+    await editarLancamento(tesoureiro, l.id, base({ tipo: "ENTRADA", realizado: true, dataRealizacao: "10/03/2026" }));
+    const h = await historicoDe(tesoureiro, "Lancamento", l.id);
+    const status = h.find((e) => e.campo === "Status");
+    expect(status).toMatchObject({ de: "Previsto", para: "Realizado" });
+  });
+
+  it("cancelamento aparece como Motivo, sem de", async () => {
+    const l = await criarLancamento(tesoureiro, base());
+    await cancelarLancamento(tesoureiro, l.id, "Lançado em duplicidade");
+    const h = await historicoDe(tesoureiro, "Lancamento", l.id);
+    expect(h[0]).toMatchObject({ acao: "Cancelou", campo: "Motivo", de: null, para: "Lançado em duplicidade" });
+  });
+
+  it("traduz o tipo da conta", async () => {
+    await atualizarConta(admin, caixa.id, { tipo: "BANCO" });
+    const h = await historicoDe(admin, "Conta", caixa.id);
+    expect(h.find((e) => e.campo === "Tipo")).toMatchObject({ de: "Caixa", para: "Banco" });
+  });
+
+  it("traduz listas de papéis", async () => {
+    await atualizarUsuario(admin, eventos.id, { papeis: ["PASTOR", "TESOUREIRO"] });
+    const h = await historicoDe(admin, "Usuario", eventos.id);
+    expect(h.find((e) => e.campo === "Papéis")).toMatchObject({ de: "Responsável por Eventos", para: "Pastor, Tesoureiro" });
   });
 });
 
