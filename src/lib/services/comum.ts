@@ -6,6 +6,8 @@ import { Validacao } from "@/lib/erros";
 
 /** Chave do `pg_advisory_xact_lock` que serializa a emissão de recibos (e edições que os afetam). */
 export const TRAVA_RECIBO = 4244;
+/** Chave do `pg_advisory_xact_lock` que serializa a numeração de versões da prestação de contas. */
+export const TRAVA_PRESTACAO = 4245;
 
 export const esquemaId = (msg: string) => z.string({ error: msg }).trim().min(1, msg);
 /**

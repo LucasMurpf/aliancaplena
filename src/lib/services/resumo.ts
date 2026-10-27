@@ -122,6 +122,40 @@ export async function saldoDaConta(
   return saldo.add(ouZero(recebidas._sum.valor)).sub(ouZero(enviadas._sum.valor));
 }
 
+/**
+ * Saldo de uma conta no fim do dia `dataLimite` (meia-noite UTC do dia civil), com a fórmula de
+ * `saldoDaConta`, contando só lançamentos REALIZADOS com `dataRealizacao ≤ dataLimite` e
+ * transferências ATIVAS com `data ≤ dataLimite`. Sem checar permissão; conta inexistente → zero.
+ */
+export async function saldoDaContaAte(
+  db: Prisma.TransactionClient | PrismaClient,
+  contaId: string,
+  dataLimite: Date,
+): Promise<Prisma.Decimal> {
+  // Sequencial: o cliente da transação usa uma única conexão.
+  const conta = await db.conta.findUnique({ where: { id: contaId }, select: { saldoInicial: true } });
+  const lancamentos = await db.lancamento.groupBy({
+    by: ["tipo"],
+    where: { contaId, status: StatusLancamento.REALIZADO, dataRealizacao: { lte: dataLimite } },
+    orderBy: { tipo: "asc" },
+    _sum: { valor: true },
+  });
+  const enviadas = await db.transferencia.aggregate({
+    where: { contaOrigemId: contaId, status: StatusTransferencia.ATIVA, data: { lte: dataLimite } },
+    _sum: { valor: true },
+  });
+  const recebidas = await db.transferencia.aggregate({
+    where: { contaDestinoId: contaId, status: StatusTransferencia.ATIVA, data: { lte: dataLimite } },
+    _sum: { valor: true },
+  });
+  let saldo = conta?.saldoInicial ?? ZERO();
+  for (const l of lancamentos) {
+    const v = ouZero(l._sum?.valor);
+    saldo = l.tipo === TipoMovimento.ENTRADA ? saldo.add(v) : saldo.sub(v);
+  }
+  return saldo.add(ouZero(recebidas._sum.valor)).sub(ouZero(enviadas._sum.valor));
+}
+
 export async function saldoTotal(ator: UsuarioAtual | null): Promise<Prisma.Decimal> {
   const contas = await saldoPorConta(ator);
   return contas.reduce((acc, c) => acc.add(c.saldo), ZERO());
