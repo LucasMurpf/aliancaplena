@@ -14,12 +14,13 @@ import { registrarLog } from "@/lib/log";
 import { montarSnapshot, type DadosSnapshot, type SnapshotPrestacao } from "@/lib/prestacao/snapshot";
 import { rastrearServidor } from "./metricas";
 import { saldoDaContaAte } from "./resumo";
-import { esquemaId, esquemaMotivo, TRAVA_PRESTACAO, validar } from "./comum";
+import { esquemaId, TRAVA_PRESTACAO, validar } from "./comum";
 
 export type { SnapshotPrestacao } from "@/lib/prestacao/snapshot";
 
 export const MSG_MES_FUTURO = "Não é possível publicar um mês futuro";
 export const MSG_PRESTACAO_NAO_ENCONTRADA = "Prestação de contas não encontrada";
+export const MSG_MOTIVO_RETIRADA = "Informe o motivo da retirada";
 export const MSG_JA_DESPUBLICADA = "Esta versão já foi despublicada";
 
 /** 32 bytes em base64url, sem preenchimento. */
@@ -53,6 +54,8 @@ export type PrestacaoAberta = {
 type Db = Prisma.TransactionClient | PrismaClient;
 
 const ZERO = () => new Prisma.Decimal(0);
+
+const esquemaMotivoRetirada = z.string({ error: MSG_MOTIVO_RETIRADA }).trim().min(1, MSG_MOTIVO_RETIRADA);
 
 const esquemaMes = z.object({
   ano: z.number({ error: "Mês inválido" }).int("Mês inválido").min(2000, "Mês inválido").max(2100, "Mês inválido"),
@@ -165,10 +168,11 @@ export async function previaPrestacao(ator: UsuarioAtual | null, ano: number, me
 export async function publicarPrestacao(ator: UsuarioAtual | null, ano: number, mes: number): Promise<PrestacaoPublicada> {
   const quem = exigir(ator, "financeiro.lancar");
   periodo(ano, mes); // valida antes de abrir a transação
+  // O snapshot é só leitura: monta-se antes da trava, para ela cobrir apenas versão, token e insert.
+  const snapshot = await construirSnapshot(prisma, ano, mes);
   return prisma.$transaction(async (tx) => {
     // Serializa as publicações: a próxima versão é lida sob a trava.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(${TRAVA_PRESTACAO})`;
-    const snapshot = await construirSnapshot(tx, ano, mes);
     const ultima = await tx.prestacaoContas.aggregate({ where: { ano, mes }, _max: { versao: true } });
     const versao = (ultima._max.versao ?? 0) + 1;
     const token = randomBytes(32).toString("base64url");
@@ -192,7 +196,7 @@ export async function publicarPrestacao(ator: UsuarioAtual | null, ano: number, 
 export async function despublicarPrestacao(ator: UsuarioAtual | null, id: string, motivo: string): Promise<void> {
   const quem = exigir(ator, "financeiro.lancar");
   const pid = validar(esquemaId(MSG_PRESTACAO_NAO_ENCONTRADA), id, { campo: "prestacao" });
-  const m = validar(esquemaMotivo, motivo, { campo: "motivo" });
+  const m = validar(esquemaMotivoRetirada, motivo, { campo: "motivo" });
   await prisma.$transaction(async (tx) => {
     const atual = await tx.prestacaoContas.findUnique({ where: { id: pid }, select: { despublicada: true } });
     if (!atual) throw new NaoEncontrado(MSG_PRESTACAO_NAO_ENCONTRADA);

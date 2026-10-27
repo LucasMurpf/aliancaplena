@@ -12,7 +12,7 @@ import {
   publicarPrestacao,
 } from "@/lib/services/prestacao";
 import { saldoDaContaAte } from "@/lib/services/resumo";
-import { criarLancamento, editarLancamento, type DadosLancamento } from "@/lib/services/lancamentos";
+import { cancelarLancamento, criarLancamento, editarLancamento, type DadosLancamento } from "@/lib/services/lancamentos";
 import { criarCategoria, criarConta, criarMembro, definirContaAtiva } from "@/lib/services/cadastros";
 import { criarTransferencia } from "@/lib/services/transferencias";
 import { instalar } from "@/lib/services/instalacao";
@@ -288,11 +288,40 @@ describe("abrirPrestacaoPublica (Review Focus 5)", () => {
   });
 });
 
+describe("snapshot: bordas", () => {
+  it("lançamento realizado e depois cancelado fica fora", async () => {
+    const l = await criarLancamento(tesoureiro, lanc({ valor: "500,00" }));
+    await criarLancamento(tesoureiro, lanc({ valor: "10,00" }));
+    await cancelarLancamento(tesoureiro, l.id, "duplicado");
+    const s = await previaPrestacao(tesoureiro, 2026, 9);
+    expect(s.resumo.entradas).toBe("R$ 10,00");
+    expect(s.entradas).toEqual([{ categoria: "Oferta", total: "R$ 10,00" }]);
+  });
+
+  it("transferência não muda entradas, saídas nem resultado", async () => {
+    await criarLancamento(tesoureiro, lanc({ valor: "300,00" }));
+    const antes = await previaPrestacao(tesoureiro, 2026, 9);
+    await criarTransferencia(tesoureiro, { contaOrigemId: caixa.id, contaDestinoId: banco.id, valor: "70,00", data: "15/09/2026" });
+    const depois = await previaPrestacao(tesoureiro, 2026, 9);
+    expect(depois.resumo).toEqual(antes.resumo);
+    expect(depois.entradas).toEqual(antes.entradas);
+    expect(depois.saidas).toEqual(antes.saidas);
+  });
+
+  it("lançamento no último dia do mês entra; no primeiro do seguinte não", async () => {
+    await criarLancamento(tesoureiro, lanc({ valor: "40,00", dataVencimento: "30/09/2026", dataRealizacao: "30/09/2026" }));
+    await criarLancamento(tesoureiro, lanc({ valor: "900,00", dataVencimento: "01/10/2026", dataRealizacao: "01/10/2026" }));
+    const s = await previaPrestacao(tesoureiro, 2026, 9);
+    expect(s.resumo.entradas).toBe("R$ 40,00");
+  });
+});
+
 describe("despublicarPrestacao", () => {
   it("exige permissão, motivo; registra log; não despublica duas vezes", async () => {
     const p = await publicarPrestacao(tesoureiro, 2026, 9);
     await expect(despublicarPrestacao(pastor, p.id, "x")).rejects.toBeInstanceOf(NaoAutorizado);
     await expect(despublicarPrestacao(tesoureiro, p.id, "   ")).rejects.toBeInstanceOf(Validacao);
+    await expect(despublicarPrestacao(tesoureiro, p.id, "   ")).rejects.toThrow("Informe o motivo da retirada");
     await expect(despublicarPrestacao(tesoureiro, "nao-existe", "x")).rejects.toBeInstanceOf(NaoEncontrado);
     await despublicarPrestacao(tesoureiro, p.id, "valor errado");
     await expect(despublicarPrestacao(tesoureiro, p.id, "de novo")).rejects.toBeInstanceOf(RegraDeNegocio);
