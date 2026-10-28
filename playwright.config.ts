@@ -18,7 +18,8 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   retries: 0,
-  reporter: "list",
+  // No CI, o repórter "github" transforma falhas em anotações visíveis pela API do GitHub.
+  reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: {
     baseURL: urlBase,
     locale: "pt-BR",
