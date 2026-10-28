@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { Prisma } from "@prisma/client";
 import type { Indicadores, Comparativo } from "@/lib/services/indicadores";
-import { adaptarIndicadores, compactoBRL, formatarVariacao } from "@/lib/indicadores-tela";
+import { adaptarIndicadores, formatarVariacao } from "@/lib/indicadores-tela";
+import { compactoBRL } from "@/lib/formatacao-eixo";
 
 const D = (v: string | number) => new Prisma.Decimal(v);
 

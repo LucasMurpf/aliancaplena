@@ -27,6 +27,7 @@ export function CascaSistema({ itens, nomeIgreja, logoUrl, nomeUsuario, podeLanc
     pathname.startsWith("/lancamentos/novo") ||
     pathname.startsWith("/calculadora/nova") ||
     pathname.startsWith("/relatorios") ||
+    pathname.startsWith("/indicadores") ||
     /^\/lancamentos\/[^/]+\/editar/.test(pathname) ||
     /^\/membros\/(novo|[^/]+)$/.test(pathname) ||
     pathname.startsWith("/configuracoes/");

@@ -1,7 +1,8 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
-import { compactoBRL, type MesTela, type TelaIndicadores } from "@/lib/indicadores-tela";
+import type { MesTela, TelaIndicadores } from "@/lib/indicadores-tela";
+import { compactoBRL } from "@/lib/formatacao-eixo";
 import { CartaoGrafico, COR, Dica, Legenda, type LinhaDica } from "./comum";
 import { useLargura } from "./use-largura";
 
