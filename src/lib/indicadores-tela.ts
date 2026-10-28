@@ -17,6 +17,8 @@ export type Direcao = "alta" | "queda" | "estavel" | "nenhuma";
 export type Variacao = { texto: string; direcao: Direcao; leitura: string };
 
 export type MesTela = {
+  ano: number;
+  mes: number;
   rotulo: string;
   rotuloLongo: string;
   entradas: Valor;
@@ -63,6 +65,8 @@ function cartao(c: Comparativo): CartaoTela {
 
 export function adaptarIndicadores(i: Indicadores): TelaIndicadores {
   const meses: MesTela[] = i.meses.map((m) => ({
+    ano: m.ano,
+    mes: m.mes,
     rotulo: m.rotulo,
     rotuloLongo: `${MESES[m.mes - 1]} de ${m.ano}`,
     entradas: valor(m.entradas),
@@ -78,4 +82,16 @@ export function adaptarIndicadores(i: Indicadores): TelaIndicadores {
     categorias: i.porCategoria.map((c) => ({ nome: c.categoria, valores: c.valores.map(valor) })),
     comparativos: { entradas: cartao(i.comparativos.entradas), saidas: cartao(i.comparativos.saidas) },
   };
+}
+
+/**
+ * Rótulo do mês dos cartões comparativos. Mês em andamento (o de `hoje`) leva "(até dd/mm)",
+ * porque ele é comparado com meses completos; mês já fechado fica só com o nome.
+ */
+export function rotuloMesCartao(mes: { ano: number; mes: number; rotuloLongo: string }, hoje: Date): string {
+  const emAndamento = hoje.getUTCFullYear() === mes.ano && hoje.getUTCMonth() + 1 === mes.mes;
+  if (!emAndamento) return mes.rotuloLongo;
+  const dia = String(hoje.getUTCDate()).padStart(2, "0");
+  const m = String(hoje.getUTCMonth() + 1).padStart(2, "0");
+  return `${mes.rotuloLongo} (até ${dia}/${m})`;
 }

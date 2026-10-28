@@ -7,7 +7,8 @@ import { GraficoEntradasSaidas } from "@/components/indicadores/GraficoEntradasS
 import { GraficoSaldo } from "@/components/indicadores/GraficoSaldo";
 import { RastreioIndicadores } from "@/components/indicadores/RastreioIndicadores";
 import { obterUsuarioAtual } from "@/lib/auth";
-import { adaptarIndicadores } from "@/lib/indicadores-tela";
+import { hojeSP } from "@/lib/datas";
+import { adaptarIndicadores, rotuloMesCartao } from "@/lib/indicadores-tela";
 import { pode } from "@/lib/permissoes";
 import { indicadores } from "@/lib/services/indicadores";
 
@@ -45,7 +46,7 @@ async function Corpo() {
         </div>
       ) : (
         <>
-          <CartoesComparativos entradas={tela.comparativos.entradas} saidas={tela.comparativos.saidas} mes={atual.rotuloLongo} />
+          <CartoesComparativos entradas={tela.comparativos.entradas} saidas={tela.comparativos.saidas} mes={rotuloMesCartao(atual, hojeSP())} />
           <GraficoEntradasSaidas meses={tela.meses} />
           <GraficoSaldo meses={tela.meses} />
           <GraficoCategoriasMes meses={tela.meses} categorias={tela.categorias} />

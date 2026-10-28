@@ -79,7 +79,7 @@ export async function indicadores(ator: UsuarioAtual | null, hoje: Date = hojeSP
            "tipo"::text AS tipo,
            SUM("valor")::text AS total
     FROM "Lancamento"
-    WHERE "status" = 'REALIZADO' AND "dataRealizacao" >= ${inicio} AND "dataRealizacao" < ${fim}
+    WHERE "status" = 'REALIZADO' AND "dataRealizacao" >= ${inicio}::date AND "dataRealizacao" < ${fim}::date
     GROUP BY 1, 2, 3`;
   const porCat = await prisma.$queryRaw<LinhaCat[]>`
     SELECT EXTRACT(YEAR FROM date_trunc('month', l."dataRealizacao"))::int AS ano,
@@ -88,7 +88,7 @@ export async function indicadores(ator: UsuarioAtual | null, hoje: Date = hojeSP
            SUM(l."valor")::text AS total
     FROM "Lancamento" l JOIN "Categoria" c ON c."id" = l."categoriaId"
     WHERE l."status" = 'REALIZADO' AND l."tipo" = 'ENTRADA'
-      AND l."dataRealizacao" >= ${inicio} AND l."dataRealizacao" < ${fim}
+      AND l."dataRealizacao" >= ${inicio}::date AND l."dataRealizacao" < ${fim}::date
     GROUP BY 1, 2, c."id", c."nome"`;
   const contrib = await prisma.$queryRaw<LinhaContrib[]>`
     SELECT EXTRACT(YEAR FROM date_trunc('month', l."dataRealizacao"))::int AS ano,
@@ -97,7 +97,7 @@ export async function indicadores(ator: UsuarioAtual | null, hoje: Date = hojeSP
     FROM "Lancamento" l JOIN "Categoria" c ON c."id" = l."categoriaId"
     WHERE l."status" = 'REALIZADO' AND l."tipo" = 'ENTRADA' AND c."nominal" = true
       AND l."membroId" IS NOT NULL
-      AND l."dataRealizacao" >= ${inicio} AND l."dataRealizacao" < ${fim}
+      AND l."dataRealizacao" >= ${inicio}::date AND l."dataRealizacao" < ${fim}::date
     GROUP BY 1, 2`;
   const saldoAntes = await saldoTotalEm(prisma, diaAntes);
 

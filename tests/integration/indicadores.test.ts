@@ -114,6 +114,33 @@ describe("indicadores", () => {
     expect(r2.meses[12].entradas.toString()).toBe("57");
   });
 
+  it("limites do mês não dependem do fuso da sessão do banco (::date)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-12-15T15:00:00Z"));
+    await criarLancamento(tesoureiro, lanc("30/09/2026", { valor: "10,00" }));
+    await criarLancamento(tesoureiro, lanc("01/10/2026", { valor: "20,00" }));
+    await criarLancamento(tesoureiro, lanc("31/10/2026", { valor: "30,00" }));
+    await criarLancamento(tesoureiro, lanc("01/11/2026", { valor: "40,00" }));
+    const banco = (await prisma.$queryRaw<{ db: string }[]>`SELECT current_database() AS db`)[0].db;
+    const fusoAntes = (await prisma.$queryRaw<{ tz: string }[]>`SELECT current_setting('TimeZone') AS tz`)[0].tz;
+    try {
+      for (const fuso of ["Pacific/Kiritimati", "America/Sao_Paulo", "Pacific/Pago_Pago"]) {
+        // Conexões novas herdam o fuso configurado no banco.
+        await prisma.$executeRawUnsafe(`ALTER DATABASE "${banco}" SET timezone TO '${fuso}'`);
+        await prisma.$disconnect();
+        expect((await prisma.$queryRaw<{ tz: string }[]>`SELECT current_setting('TimeZone') AS tz`)[0].tz).toBe(fuso);
+        const r = await indicadores(tesoureiro, new Date(Date.UTC(2026, 9, 31)));
+        expect(r.meses[11].entradas.toString(), fuso).toBe("10");
+        expect(r.meses[12].entradas.toString(), fuso).toBe("50");
+        expect(r.meses[12].contribuintes, fuso).toBe(0);
+      }
+    } finally {
+      await prisma.$executeRawUnsafe(`ALTER DATABASE "${banco}" RESET timezone`);
+      await prisma.$disconnect();
+      expect((await prisma.$queryRaw<{ tz: string }[]>`SELECT current_setting('TimeZone') AS tz`)[0].tz).toBe(fusoAntes);
+    }
+  });
+
   it("contribuintes conta membros distintos (2 dízimos do mesmo membro = 1)", async () => {
     await criarLancamento(tesoureiro, lanc("05/10/2026", { categoriaId: dizimo.id, membroId: joao.id }));
     await criarLancamento(tesoureiro, lanc("12/10/2026", { categoriaId: dizimo.id, membroId: joao.id }));

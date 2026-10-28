@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Prisma } from "@prisma/client";
 import type { Indicadores, Comparativo } from "@/lib/services/indicadores";
-import { adaptarIndicadores, formatarVariacao } from "@/lib/indicadores-tela";
+import { adaptarIndicadores, formatarVariacao, rotuloMesCartao } from "@/lib/indicadores-tela";
 import { compactoBRL } from "@/lib/formatacao-eixo";
 
 const D = (v: string | number) => new Prisma.Decimal(v);
@@ -113,5 +113,21 @@ describe("compactoBRL", () => {
     expect(compactoBRL(12000)).toBe("12 mil");
     expect(compactoBRL(2_300_000)).toBe("2,3 mi");
     expect(compactoBRL(-4000)).toBe("−4 mil");
+  });
+});
+
+describe("rotuloMesCartao", () => {
+  const out = { ano: 2026, mes: 10, rotuloLongo: "outubro de 2026" };
+  it("mês em andamento leva 'até dd/mm'", () => {
+    expect(rotuloMesCartao(out, new Date("2026-10-28T00:00:00Z"))).toBe("outubro de 2026 (até 28/10)");
+    expect(rotuloMesCartao(out, new Date("2026-10-03T00:00:00Z"))).toBe("outubro de 2026 (até 03/10)");
+  });
+  it("mês que não é o corrente fica só com o nome", () => {
+    expect(rotuloMesCartao(out, new Date("2026-11-02T00:00:00Z"))).toBe("outubro de 2026");
+    expect(rotuloMesCartao(out, new Date("2027-10-02T00:00:00Z"))).toBe("outubro de 2026");
+  });
+  it("adaptarIndicadores expõe ano e mês de cada mês", () => {
+    const m = adaptarIndicadores(base()).meses[12];
+    expect([m.ano, m.mes]).toEqual([2026, 10]);
   });
 });
