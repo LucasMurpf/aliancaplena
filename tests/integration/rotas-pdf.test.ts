@@ -200,11 +200,12 @@ describe("GET /api/csv/relatorio/:tipo", () => {
     expect(texto).not.toContain("Inclui lançamentos previstos");
   });
 
-  it("geral com incluirPrevistos=1: primeira linha avisa e o previsto entra", async () => {
+  it("geral com incluirPrevistos=1: sem aviso no CSV, primeira linha após o BOM é o cabeçalho e o previsto entra", async () => {
     sessao.atual = tesoureiro;
     const r = await csvRelatorio(req(`/api/csv/relatorio/geral?${periodo}&incluirPrevistos=1`), ctx({ tipo: "geral" }));
     const texto = (await bytes(r)).toString("utf8");
-    expect(texto.startsWith("﻿Inclui lançamentos previstos\r\n")).toBe(true);
+    expect(texto.startsWith("﻿Data;Tipo;Categoria;Conta;Descrição;Valor;Situação\r\n")).toBe(true);
+    expect(texto).not.toContain("Inclui lançamentos previstos");
     expect(texto.match(/﻿/g)).toHaveLength(1);
     expect(texto).toContain("Conta de luz");
     expect(texto).toContain("Previsto");
