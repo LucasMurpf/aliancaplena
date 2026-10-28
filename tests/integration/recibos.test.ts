@@ -4,7 +4,7 @@ import type { Categoria, Conta, Membro } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { UsuarioAtual } from "@/lib/auth";
 import { NaoAutorizado, NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
-import { dadosRecibo, emitirRecibo } from "@/lib/services/recibos";
+import { dadosRecibo, emitirRecibo, reciboDoLancamento } from "@/lib/services/recibos";
 import {
   MSG_RECIBO_EMITIDO,
   cancelarLancamento,
@@ -308,5 +308,21 @@ describe("edição de lançamento com recibo emitido", () => {
     await emitirRecibo(tesoureiro, l.id);
     await cancelarLancamento(tesoureiro, l.id, "lançado em duplicidade");
     expect((await dadosRecibo(tesoureiro, l.id)).cancelado).toBe(true);
+  });
+});
+
+describe("reciboDoLancamento", () => {
+  it("sem recibo → null; com recibo → número formatado (sem log de reemissão)", async () => {
+    const l = await criarLancamento(tesoureiro, lanc());
+    expect(await reciboDoLancamento(pastor, l.id)).toBeNull();
+    await emitirRecibo(tesoureiro, l.id);
+    expect(await reciboDoLancamento(pastor, l.id)).toEqual({ numeroFormatado: "2026/000001" });
+    expect(await logsRecibo(l.id)).toHaveLength(1);
+  });
+
+  it("exige financeiro.ver e sessão", async () => {
+    const l = await criarLancamento(tesoureiro, lanc());
+    await expect(reciboDoLancamento(eventos, l.id)).rejects.toBeInstanceOf(NaoAutorizado);
+    await expect(reciboDoLancamento(null, l.id)).rejects.toBeInstanceOf(NaoAutorizado);
   });
 });

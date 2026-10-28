@@ -13,10 +13,15 @@ import {
   editarLancamento,
   type DadosLancamento,
 } from "@/lib/services/lancamentos";
+import { podeEmitirRecibo } from "@/lib/services/recibos";
 import { cancelarTransferencia, criarTransferencia, type DadosTransferencia } from "@/lib/services/transferencias";
 
-export async function salvarLancamentoAction(dados: DadosLancamento): Promise<ResultadoAcao<{ id: string }>> {
-  return executar(async (ator) => ({ id: (await criarLancamento(ator, dados)).id }));
+/** `podeRecibo`: realizado, nominal e o ator tem as duas permissões (o formulário oferece "Gerar recibo"). */
+export async function salvarLancamentoAction(dados: DadosLancamento): Promise<ResultadoAcao<{ id: string; podeRecibo: boolean }>> {
+  return executar(async (ator) => {
+    const l = await criarLancamento(ator, dados);
+    return { id: l.id, podeRecibo: await podeEmitirRecibo(ator, l) };
+  });
 }
 
 /** `versao`: `atualizadoEm` (ISO) carregado pelo formulário; versão antiga é recusada. */

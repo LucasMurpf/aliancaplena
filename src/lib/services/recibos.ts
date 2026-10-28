@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { Prisma, StatusLancamento } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
+import { pode } from "@/lib/permissoes";
 import { formatarBRL } from "@/lib/dinheiro";
 import { dataPorExtenso, formatarDataBR } from "@/lib/datas";
 import { NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
@@ -157,4 +158,27 @@ export async function dadosRecibo(ator: UsuarioAtual | null, lancamentoId: strin
   const l = await carregar(id);
   if (!l.recibo) throw new NaoEncontrado(MSG_RECIBO_NAO_ENCONTRADO);
   return montar(l);
+}
+
+/** Número do recibo já emitido para o lançamento (ou `null`); não emite nem registra log. */
+export async function reciboDoLancamento(ator: UsuarioAtual | null, lancamentoId: string): Promise<{ numeroFormatado: string } | null> {
+  exigir(ator, "financeiro.ver");
+  const id = validarId(lancamentoId);
+  const r = await prisma.recibo.findUnique({ where: { lancamentoId: id }, select: { ano: true, numero: true } });
+  return r ? { numeroFormatado: formatarNumeroRecibo(r.ano, r.numero) } : null;
+}
+
+/** Regra de elegibilidade (sem permissões): realizado, categoria nominal e membro informado. */
+export function lancamentoElegivelParaRecibo(l: { status: StatusLancamento; membroId: string | null; categoria: { nominal: boolean } }): boolean {
+  return l.status === StatusLancamento.REALIZADO && l.categoria.nominal && l.membroId !== null;
+}
+
+/** O ator pode emitir recibo (as duas permissões) e o lançamento é elegível? Não lança. */
+export async function podeEmitirRecibo(
+  ator: UsuarioAtual | null,
+  l: { status: StatusLancamento; membroId: string | null; categoriaId: string },
+): Promise<boolean> {
+  if (!ator || !pode(ator.papeis, "financeiro.lancar") || !pode(ator.papeis, "membros.ver_nomes")) return false;
+  const categoria = await prisma.categoria.findUnique({ where: { id: l.categoriaId }, select: { nominal: true } });
+  return categoria !== null && lancamentoElegivelParaRecibo({ ...l, categoria });
 }

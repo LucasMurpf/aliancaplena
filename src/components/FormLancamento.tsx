@@ -25,6 +25,7 @@ import { descarregarMetricas, rastrear } from "@/lib/metricas/cliente";
 import type { PrefillLancamento } from "@/lib/prefill-lancamento";
 import { CampoData } from "./CampoData";
 import { CampoDinheiro } from "./CampoDinheiro";
+import { BotaoRecibo } from "./BotaoRecibo";
 import { SeletorMembro } from "./SeletorMembro";
 import { Alerta } from "./ui/Alerta";
 import { Botao } from "./ui/Botao";
@@ -74,6 +75,8 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, in
   const [erros, setErros] = useState<Record<string, string>>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [salvoMsg, setSalvoMsg] = useState(false);
+  /** Lançamento recém-salvo (em "salvar e lançar outro") que aceita recibo. */
+  const [reciboId, setReciboId] = useState<string | null>(null);
   const [enviando, setEnviando] = useState<null | "salvar" | "outro">(null);
   const valorRef = useRef<HTMLInputElement>(null);
   const inicio = useRef(0);
@@ -118,6 +121,7 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, in
     setErros({});
     setErroGeral(null);
     setSalvoMsg(false);
+    setReciboId(null);
     try {
       const dados = montarDados(estado, categorias, edicao?.vencimentoOriginal);
       const r = edicao ? await editarLancamentoAction(edicao.id, dados, edicao.versao) : await salvarLancamentoAction(dados);
@@ -151,6 +155,7 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, in
         setEstado(aposSalvarELancarOutro(estado));
         setAnexos([]);
         setSalvoMsg(true);
+        setReciboId("podeRecibo" in r && r.podeRecibo ? id : null);
         salvo.current = false;
         inicio.current = Date.now();
         rastrear("lancamento_iniciado", { tipo: estado.tipo });
@@ -204,7 +209,12 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, in
 
   return (
     <form onSubmit={aoEnviar} className="flex flex-col gap-4" noValidate>
-      {salvoMsg ? <Alerta tipo="sucesso">Lançamento salvo</Alerta> : null}
+      {salvoMsg ? (
+        <Alerta tipo="sucesso">
+          <p>Lançamento salvo</p>
+          {reciboId ? <BotaoRecibo key={reciboId} lancamentoId={reciboId} className="mt-2" /> : null}
+        </Alerta>
+      ) : null}
       {erroGeral ? <Alerta tipo="erro">{erroGeral}</Alerta> : null}
 
       {edicao ? <input type="hidden" name="versao" value={edicao.versao} /> : null}
