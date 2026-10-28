@@ -36,7 +36,7 @@ async function Nova() {
       {contas.length === 0 ? (
         <Alerta tipo="info">Cadastre uma conta antes de contar.</Alerta>
       ) : (
-        <FormContagem contas={contas.map((c) => ({ id: c.id, nome: c.nome }))} hoje={hoje} />
+        <FormContagem contas={contas.map((c) => ({ id: c.id, nome: c.nome, tipo: c.tipo }))} hoje={hoje} />
       )}
     </div>
   );

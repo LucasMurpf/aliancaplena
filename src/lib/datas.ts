@@ -29,6 +29,16 @@ export function formatarDataBR(d: Date): string {
   return `${dia}/${mes}/${d.getUTCFullYear()}`;
 }
 
+/** "dd/mm/aaaa" do dia civil de um instante no fuso de São Paulo (diferente de formatarDataBR, que lê UTC). */
+export function formatarDataSP(instante: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_NEGOCIO,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(instante);
+}
+
 /** Início (inclusive) e fim (exclusivo) de um mês, em meia-noite UTC. */
 export function limitesDoMes(ano: number, mes: number): { inicio: Date; fim: Date } {
   if (!Number.isInteger(mes) || mes < 1 || mes > 12) {

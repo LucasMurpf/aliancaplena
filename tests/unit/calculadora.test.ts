@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   calcularTotalCentavos,
+  contaPadraoId,
   DENOMINACOES_CLIENTE,
   descreverDiferenca,
+  destinoErroContagem,
   formatarCentavos,
+  MSG_ESPERADO_MUDOU,
+  observacaoParaEnvio,
 } from "@/lib/calculadora";
 import { DENOMINACOES } from "@/lib/services/contagens";
 
@@ -59,5 +63,48 @@ describe("descreverDiferenca", () => {
   });
   it("positivo sobra", () => {
     expect(descreverDiferenca(150000)).toEqual({ texto: "Sobram R$ 1.500,00", estado: "sobra" });
+  });
+});
+
+describe("contaPadraoId (spec §2)", () => {
+  it("escolhe a primeira CAIXA mesmo que um banco venha antes", () => {
+    const contas = [
+      { id: "bb", tipo: "BANCO" },
+      { id: "cx1", tipo: "CAIXA" },
+      { id: "cx2", tipo: "CAIXA" },
+    ];
+    expect(contaPadraoId(contas)).toBe("cx1");
+  });
+  it("sem CAIXA usa a primeira conta; sem contas devolve vazio", () => {
+    expect(contaPadraoId([{ id: "bb", tipo: "BANCO" }, { id: "pp", tipo: "BANCO" }])).toBe("bb");
+    expect(contaPadraoId([])).toBe("");
+  });
+});
+
+describe("observacaoParaEnvio", () => {
+  it("só envia com diferença e texto", () => {
+    expect(observacaoParaEnvio("faltou troco", -500)).toBe("faltou troco");
+    expect(observacaoParaEnvio("sobrou", 100)).toBe("sobrou");
+    expect(observacaoParaEnvio("antiga", 0)).toBeUndefined();
+    expect(observacaoParaEnvio("   ", -500)).toBeUndefined();
+  });
+});
+
+describe("destinoErroContagem", () => {
+  const mapa = { contaId: "conta" };
+  it("campo visível recebe o erro", () => {
+    expect(destinoErroContagem({ campo: "observacao", regra: "obrigatorio_divergencia", erro: "x" }, ["conta", "observacao"], mapa)).toEqual({ campo: "observacao", mensagem: "x" });
+    expect(destinoErroContagem({ campo: "contaId", erro: "conta ruim" }, ["conta"], mapa)).toEqual({ campo: "conta", mensagem: "conta ruim" });
+  });
+  it("observação invisível (esperado mudou) vira erro geral com a mensagem própria", () => {
+    expect(destinoErroContagem({ campo: "observacao", regra: "obrigatorio_divergencia", erro: "Explique" }, ["conta", "data"], mapa)).toEqual({
+      campo: null,
+      mensagem: MSG_ESPERADO_MUDOU,
+    });
+    expect(MSG_ESPERADO_MUDOU).toBe("O valor esperado mudou (alguém lançou algo agora). Confira a diferença e informe a observação.");
+  });
+  it("outro campo invisível mantém a mensagem do servidor como geral", () => {
+    expect(destinoErroContagem({ campo: "data", erro: "Data inválida" }, ["conta"], mapa)).toEqual({ campo: null, mensagem: "Data inválida" });
+    expect(destinoErroContagem({ erro: "Falhou" }, ["conta"], mapa)).toEqual({ campo: null, mensagem: "Falhou" });
   });
 });

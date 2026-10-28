@@ -3,8 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
 import { esperadoAction, registrarContagemAction } from "@/app/(sistema)/calculadora/actions";
-import { calcularTotalCentavos, DENOMINACOES_CLIENTE, descreverDiferenca, formatarCentavos } from "@/lib/calculadora";
-import { destinoDoErro } from "@/lib/form-lancamento";
+import {
+  calcularTotalCentavos,
+  contaPadraoId,
+  DENOMINACOES_CLIENTE,
+  descreverDiferenca,
+  destinoErroContagem,
+  formatarCentavos,
+  observacaoParaEnvio,
+} from "@/lib/calculadora";
 import { rastrear } from "@/lib/metricas/cliente";
 import { CampoData } from "../CampoData";
 import { Alerta } from "../ui/Alerta";
@@ -12,7 +19,7 @@ import { Botao } from "../ui/Botao";
 import { BORDA_ERRO, BORDA_OK, CLASSE_INPUT } from "../ui/estilos";
 import { Selecao } from "../ui/Selecao";
 
-type Props = { contas: { id: string; nome: string }[]; hoje: string };
+type Props = { contas: { id: string; nome: string; tipo: string }[]; hoje: string };
 type Modo = "CULTO" | "CAIXA";
 type Esperado = { texto: string; centavos: number };
 
@@ -24,7 +31,7 @@ export function FormContagem({ contas, hoje }: Props) {
   const router = useRouter();
   const idObs = useId();
   const [modo, setModo] = useState<Modo>("CULTO");
-  const [contaId, setContaId] = useState(contas[0]?.id ?? "");
+  const [contaId, setContaId] = useState(() => contaPadraoId(contas));
   const [data, setData] = useState(hoje);
   const [qtd, setQtd] = useState<Record<number, number>>({});
   const [observacao, setObservacao] = useState("");
@@ -34,6 +41,7 @@ export function FormContagem({ contas, hoje }: Props) {
   const [erros, setErros] = useState<Record<string, string>>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [recarga, setRecarga] = useState(0);
 
   // Esperado: busca no servidor ao trocar modo/conta/data (espera 300 ms de calma).
   useEffect(() => {
@@ -61,7 +69,7 @@ export function FormContagem({ contas, hoje }: Props) {
       cancelado = true;
       clearTimeout(t);
     };
-  }, [modo, contaId, data]);
+  }, [modo, contaId, data, recarga]);
 
   // Marca "calculando…" já na mudança (o efeito só busca depois da espera de 300 ms).
   const mudarModo = (v: Modo) => {
@@ -91,6 +99,7 @@ export function FormContagem({ contas, hoje }: Props) {
   async function aoEnviar(e: FormEvent) {
     e.preventDefault();
     if (enviando || calculando || !esperado) return;
+    const obs = observacaoParaEnvio(observacao, contado - esperado.centavos);
     setEnviando(true);
     setErros({});
     setErroGeral(null);
@@ -100,20 +109,26 @@ export function FormContagem({ contas, hoje }: Props) {
         contaId,
         ...(modo === "CULTO" ? { data } : {}),
         itens: itens.filter((i) => i.quantidade > 0),
-        ...(observacao.trim() ? { observacao } : {}),
+        ...(obs !== undefined ? { observacao: obs } : {}),
       });
       if (!r.ok) {
         if (r.campo || r.regra) rastrear("erro_validacao", { campo: r.campo ?? "geral", regra: r.regra ?? "outra" });
         if (r.inesperado) rastrear("erro_inesperado", { campo: "contagem" });
-        const destino = destinoDoErro(r.campo, ["conta", "data", "observacao"], CAMPO_TELA);
-        if (destino) setErros({ [destino]: r.erro });
-        else setErroGeral(r.erro);
+        // Só os campos que estão na tela; o esperado pode ter mudado, então busca de novo.
+        const visiveis = ["conta", ...(modo === "CULTO" ? ["data"] : []), ...(divergente ? ["observacao"] : [])];
+        const destino = destinoErroContagem(r, visiveis, CAMPO_TELA);
+        if (destino.campo) setErros({ [destino.campo]: destino.mensagem });
+        else setErroGeral(destino.mensagem);
+        setCalculando(true);
+        setRecarga((n) => n + 1);
         return;
       }
       router.push(`/calculadora/${r.id}?salvo=1`);
     } catch {
       rastrear("erro_inesperado", { campo: "contagem" });
       setErroGeral("Algo deu errado, tente novamente");
+      setCalculando(true);
+      setRecarga((n) => n + 1);
     } finally {
       setEnviando(false);
     }
@@ -237,7 +252,7 @@ export function FormContagem({ contas, hoje }: Props) {
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-2 backdrop-blur lg:left-64 lg:px-8">
         <div className="mx-auto flex max-w-xl flex-col gap-2">
-          <dl className="grid grid-cols-3 gap-2 text-center" aria-live="polite">
+          <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)] gap-2 text-center">
             <div>
               <dt className="text-xs text-slate-600">Contado</dt>
               <dd className="text-sm font-bold tabular-nums text-slate-900">{formatarCentavos(contado)}</dd>
@@ -250,7 +265,7 @@ export function FormContagem({ contas, hoje }: Props) {
             </div>
             <div>
               <dt className="text-xs text-slate-600">Diferença</dt>
-              <dd className={`text-sm font-bold tabular-nums ${diferenca ? COR[diferenca.estado] : "text-slate-500"}`}>
+              <dd aria-live="polite" className={`text-sm font-bold tabular-nums ${diferenca ? COR[diferenca.estado] : "text-slate-500"}`}>
                 {calculando ? "…" : diferenca ? diferenca.texto : "—"}
               </dd>
             </div>

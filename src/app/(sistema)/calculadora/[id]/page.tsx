@@ -2,10 +2,10 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AbaHistorico } from "@/components/AbaHistorico";
-import { descricaoDiferenca, formatarDataHora, ROTULO_MODO } from "@/components/calculadora/formatacao";
+import { descricaoDiferenca, formatarDataHora } from "@/components/calculadora/formatacao";
 import { Alerta } from "@/components/ui/Alerta";
 import { obterUsuarioAtual } from "@/lib/auth";
-import { formatarDataBR } from "@/lib/datas";
+import { formatarDataSP } from "@/lib/datas";
 import { formatarBRL } from "@/lib/dinheiro";
 import { ErroApp } from "@/lib/erros";
 import { pode } from "@/lib/permissoes";
@@ -52,7 +52,7 @@ async function Detalhe({ params, searchParams }: Props) {
   const dif = descricaoDiferenca(c.diferenca);
 
   // Ajuste: sobra vira entrada, falta vira saída; a data é a do culto (ou do dia da conferência do caixa).
-  const dataBR = c.data ?? formatarDataBR(c.criadoEm);
+  const dataBR = c.data ?? formatarDataSP(c.criadoEm);
   const [dd, mm, aaaa] = dataBR.split("/");
   const ajuste = new URLSearchParams({
     tipo: c.diferenca.isPositive() ? "ENTRADA" : "SAIDA",

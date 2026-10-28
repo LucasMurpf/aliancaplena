@@ -43,7 +43,7 @@ export function lerPrefillLancamento(
       /* ignora */
     }
   }
-  const descricao = primeiro(sp.descricao);
+  const descricao = primeiro(sp.descricao)?.trim();
   if (descricao && descricao.length <= 200) r.descricao = descricao;
   return r;
 }

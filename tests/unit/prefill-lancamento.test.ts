@@ -35,6 +35,10 @@ describe("lerPrefillLancamento", () => {
       tipo: "ENTRADA",
     });
   });
+  it("descrição: apara os espaços e ignora a que fica vazia", () => {
+    expect(lerPrefillLancamento({ descricao: "  Ajuste  " }, { contas, hoje })).toEqual({ descricao: "Ajuste" });
+    expect(lerPrefillLancamento({ descricao: "   " }, { contas, hoje })).toEqual({});
+  });
   it("sem parâmetros devolve vazio", () => {
     expect(lerPrefillLancamento({}, { contas, hoje })).toEqual({});
   });
