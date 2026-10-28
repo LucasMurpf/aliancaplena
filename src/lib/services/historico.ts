@@ -65,6 +65,8 @@ export const ROTULO_CAMPO: Record<string, string> = {
   logoUrl: "Logo",
   cnpj: "CNPJ",
   metricasAtivas: "Coleta de métricas de uso",
+  detalharPublico: "Detalhar na prestação pública",
+  cidade: "Cidade",
 };
 
 const LIMITE_HISTORICO = 200;

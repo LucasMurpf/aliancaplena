@@ -28,7 +28,7 @@ describe("textos", () => {
   });
   it("confirmação de publicação", () => {
     expect(textoConfirmarPublicacao(2026, 10)).toBe(
-      "Publicar a prestação de contas de outubro de 2026? Os membros que receberem o link verão exatamente esta versão.",
+      "Publicar a prestação de contas de outubro de 2026? Os membros que receberem o link verão exatamente esta versão. Revise as descrições dos gastos detalhados antes de publicar.",
     );
   });
   it("URL pública usa a origem e o token", () => {

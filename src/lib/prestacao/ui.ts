@@ -7,7 +7,7 @@ export function rotuloMesExtenso(ano: number, mes: number): string {
 }
 
 export function textoConfirmarPublicacao(ano: number, mes: number): string {
-  return `Publicar a prestação de contas de ${rotuloMesExtenso(ano, mes)}? Os membros que receberem o link verão exatamente esta versão.`;
+  return `Publicar a prestação de contas de ${rotuloMesExtenso(ano, mes)}? Os membros que receberem o link verão exatamente esta versão. Revise as descrições dos gastos detalhados antes de publicar.`;
 }
 
 /** Lê "aaaa-mm" do seletor; só o mês atual ou passado (`hoje` = dia civil em São Paulo, meia-noite UTC). */

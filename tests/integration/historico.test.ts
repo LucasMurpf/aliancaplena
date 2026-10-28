@@ -5,7 +5,8 @@ import type { UsuarioAtual } from "@/lib/auth";
 import { NaoAutorizado } from "@/lib/erros";
 import { historicoDe, ROTULO_ACAO, ROTULO_CAMPO } from "@/lib/services/historico";
 import { cancelarLancamento, criarLancamento, editarLancamento, type DadosLancamento } from "@/lib/services/lancamentos";
-import { atualizarConta, criarMembro } from "@/lib/services/cadastros";
+import { atualizarCategoria, atualizarConta, criarMembro } from "@/lib/services/cadastros";
+import { atualizarConfiguracao } from "@/lib/services/configuracao";
 import { instalar } from "@/lib/services/instalacao";
 import { atualizarUsuario, criarUsuario } from "@/lib/services/usuarios";
 import { resetarBanco } from "../helpers/db";
@@ -126,6 +127,20 @@ describe("valores legíveis", () => {
     await atualizarUsuario(admin, eventos.id, { papeis: ["PASTOR", "TESOUREIRO"] });
     const h = await historicoDe(admin, "Usuario", eventos.id);
     expect(h.find((e) => e.campo === "Papéis")).toMatchObject({ de: "Responsável por Eventos", para: "Pastor, Tesoureiro" });
+  });
+});
+
+describe("campos da prestação pública", () => {
+  it("mostra rótulos de detalharPublico (categoria) e cidade (igreja)", async () => {
+    const luz = await prisma.categoria.findFirstOrThrow({ where: { nome: "Luz", tipo: "SAIDA" } });
+    await atualizarCategoria(admin, luz.id, { detalharPublico: false });
+    const hc = await historicoDe(admin, "Categoria", luz.id);
+    expect(hc.find((l) => l.campo === "Detalhar na prestação pública")).toMatchObject({ de: "Sim", para: "Não" });
+
+    await atualizarConfiguracao(admin, { nomeIgreja: "Igreja", cidade: "Colombo" });
+    const cfg = await prisma.configuracao.findFirstOrThrow();
+    const hi = await historicoDe(admin, "Configuracao", cfg.id);
+    expect(hi.find((l) => l.campo === "Cidade")).toMatchObject({ para: "Colombo" });
   });
 });
 
