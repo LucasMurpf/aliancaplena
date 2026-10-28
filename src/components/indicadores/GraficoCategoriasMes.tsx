@@ -25,15 +25,15 @@ export function GraficoCategoriasMes({ meses, categorias }: { meses: MesTela[]; 
     <CartaoGrafico
       id="ind-categorias"
       titulo="Arrecadação por categoria"
-      subtitulo="Como as entradas de cada mês se dividem entre as cinco maiores categorias; as demais ficam em “Outras”."
+      subtitulo="Em reais. Como as entradas de cada mês se dividem entre as cinco maiores categorias; as demais ficam em “Outras”."
     >
       <Legenda itens={categorias.map((c, i) => ({ rotulo: c.nome, cor: cor(c.nome, i) }))} />
       <div ref={ref} role="img" aria-label={aria} className="w-full" style={{ height: ALTURA }}>
         {largura > 0 && (
-          <BarChart width={largura} height={ALTURA} data={dados} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
+          <BarChart width={largura} height={ALTURA} data={dados} margin={{ top: 12, right: 24, bottom: 0, left: 0 }} accessibilityLayer={false}>
             <CartesianGrid vertical={false} stroke={COR.grade} />
-            <XAxis dataKey="rotulo" interval={largura < 520 ? 1 : 0} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={{ stroke: COR.grade }} />
-            <YAxis width={64} tickFormatter={compactoBRL} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={false} />
+            <XAxis dataKey="rotulo" interval={largura < 420 ? 2 : largura < 520 ? 1 : 0} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={{ stroke: COR.grade }} />
+            <YAxis width={56} tickFormatter={compactoBRL} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={false} />
             <Tooltip content={<Dica linhas={linhas} omitirZeros />} cursor={{ fill: "#f1f5f9" }} isAnimationActive={false} />
             {categorias.map((c, i) => (
               <Bar key={c.nome} dataKey={`c${i}`} stackId="cat" fill={cor(c.nome, i)} stroke="#fff" strokeWidth={2} maxBarSize={28} isAnimationActive={false} />

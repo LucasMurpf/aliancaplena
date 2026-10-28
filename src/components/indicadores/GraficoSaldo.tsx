@@ -18,18 +18,18 @@ export function GraficoSaldo({ meses }: { meses: MesTela[] }) {
     <CartaoGrafico
       id="ind-saldo"
       titulo="Saldo ao fim de cada mês"
-      subtitulo="Quanto havia, somando todas as contas, no último dia de cada mês."
+      subtitulo="Em reais. Quanto havia, somando todas as contas, no último dia de cada mês."
     >
       <div ref={ref} role="img" aria-label={aria} className="w-full" style={{ height: ALTURA }}>
         {largura > 0 && (
-          <LineChart width={largura} height={ALTURA} data={dados} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
+          <LineChart width={largura} height={ALTURA} data={dados} margin={{ top: 12, right: 24, bottom: 0, left: 0 }} accessibilityLayer={false}>
             <CartesianGrid vertical={false} stroke={COR.grade} />
-            <XAxis dataKey="rotulo" interval={largura < 520 ? 1 : 0} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={{ stroke: COR.grade }} />
-            <YAxis width={64} tickFormatter={compactoBRL} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
+            <XAxis dataKey="rotulo" interval={largura < 420 ? 2 : largura < 520 ? 1 : 0} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={{ stroke: COR.grade }} />
+            <YAxis width={56} tickFormatter={compactoBRL} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
             <ReferenceLine y={0} stroke={COR.eixo} strokeWidth={1} />
             <Tooltip content={<Dica linhas={LINHAS} />} cursor={{ stroke: COR.eixo, strokeDasharray: "3 3" }} isAnimationActive={false} />
             <Line
-              type="monotone"
+              type="linear"
               dataKey="saldo"
               stroke={COR.saldo}
               strokeWidth={2}

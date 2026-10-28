@@ -106,11 +106,11 @@ describe("adaptarIndicadores", () => {
 
 describe("compactoBRL", () => {
   it("abrevia milhares e milhões", () => {
-    expect(compactoBRL(0)).toBe("R$ 0");
-    expect(compactoBRL(850)).toBe("R$ 850");
-    expect(compactoBRL(1500)).toBe("R$ 1,5 mil");
-    expect(compactoBRL(12000)).toBe("R$ 12 mil");
-    expect(compactoBRL(2_300_000)).toBe("R$ 2,3 mi");
-    expect(compactoBRL(-4000)).toBe("−R$ 4 mil");
+    expect(compactoBRL(0)).toBe("0");
+    expect(compactoBRL(850)).toBe("850");
+    expect(compactoBRL(1500)).toBe("1,5 mil");
+    expect(compactoBRL(12000)).toBe("12 mil");
+    expect(compactoBRL(2_300_000)).toBe("2,3 mi");
+    expect(compactoBRL(-4000)).toBe("−4 mil");
   });
 });

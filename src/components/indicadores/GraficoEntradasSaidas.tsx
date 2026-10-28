@@ -24,14 +24,13 @@ export function GraficoEntradasSaidas({ meses }: { meses: MesTela[] }) {
     tSaidas: m.saidas.texto,
     tResultado: m.resultado.texto,
   }));
-  const estreito = largura < 520;
   const aria = `Entradas, saídas e resultado de cada um dos últimos 13 meses, de ${meses[0].rotuloLongo} a ${meses[meses.length - 1].rotuloLongo}. Os valores estão na tabela abaixo.`;
 
   return (
     <CartaoGrafico
       id="ind-entradas-saidas"
       titulo="Entradas e saídas por mês"
-      subtitulo="Barras: quanto entrou e quanto saiu em cada mês. Linha: o resultado (entradas menos saídas)."
+      subtitulo="Em reais. Barras: quanto entrou e quanto saiu em cada mês. Linha: o resultado (entradas menos saídas)."
     >
       <Legenda
         itens={[
@@ -42,16 +41,16 @@ export function GraficoEntradasSaidas({ meses }: { meses: MesTela[] }) {
       />
       <div ref={ref} role="img" aria-label={aria} className="w-full" style={{ height: ALTURA }}>
         {largura > 0 && (
-          <ComposedChart width={largura} height={ALTURA} data={dados} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
+          <ComposedChart width={largura} height={ALTURA} data={dados} margin={{ top: 12, right: 24, bottom: 0, left: 0 }} accessibilityLayer={false}>
             <CartesianGrid vertical={false} stroke={COR.grade} />
-            <XAxis dataKey="rotulo" interval={estreito ? 1 : 0} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={{ stroke: COR.grade }} />
-            <YAxis width={64} tickFormatter={compactoBRL} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={false} />
+            <XAxis dataKey="rotulo" interval={largura < 420 ? 2 : largura < 520 ? 1 : 0} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={{ stroke: COR.grade }} />
+            <YAxis width={56} tickFormatter={compactoBRL} tick={{ fontSize: 12, fill: COR.eixo }} tickLine={false} axisLine={false} />
             <ReferenceLine y={0} stroke={COR.eixo} strokeWidth={1} />
             <Tooltip content={<Dica linhas={LINHAS} />} cursor={{ fill: "#f1f5f9" }} isAnimationActive={false} />
-            <Bar dataKey="entradas" fill={COR.entradas} radius={[4, 4, 0, 0]} maxBarSize={14} isAnimationActive={false} stroke="#fff" strokeWidth={1} />
-            <Bar dataKey="saidas" fill={COR.saidas} radius={[4, 4, 0, 0]} maxBarSize={14} isAnimationActive={false} stroke="#fff" strokeWidth={1} />
+            <Bar dataKey="entradas" fill={COR.entradas} radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false} stroke="#fff" strokeWidth={1} />
+            <Bar dataKey="saidas" fill={COR.saidas} radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false} stroke="#fff" strokeWidth={1} />
             <Line
-              type="monotone"
+              type="linear"
               dataKey="resultado"
               stroke={COR.resultado}
               strokeWidth={2}
