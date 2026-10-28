@@ -1,3 +1,5 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Categoria, Conta } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -12,6 +14,7 @@ import {
   previaPrestacao,
   publicarPrestacao,
 } from "@/lib/services/prestacao";
+import { VisaoPrestacao } from "@/components/prestacao/VisaoPrestacao";
 import { saldoDaContaAte } from "@/lib/services/resumo";
 import { cancelarLancamento, criarLancamento, editarLancamento, type DadosLancamento } from "@/lib/services/lancamentos";
 import { criarCategoria, criarConta, criarMembro, definirContaAtiva } from "@/lib/services/cadastros";
@@ -192,6 +195,24 @@ describe("publicarPrestacao", () => {
       expect(json).not.toContain("Tesoureiro Teste");
     }
     expect(p.snapshot.entradas).toEqual([{ categoria: "Dízimo", total: "R$ 250,00" }]);
+  });
+
+  it("Review Focus 1: o HTML da visão pública só traz textos do snapshot (sem membro, conta, usuário)", async () => {
+    const zelia = await criarMembro(admin, { nome: "Zélia Nominal" });
+    await criarLancamento(tesoureiro, lanc({ categoriaId: dizimo.id, membroId: zelia.id, valor: "250,00", descricao: "Dízimo da irmã Zélia" }));
+    await criarLancamento(tesoureiro, lanc({ valor: "10,00", contaId: banco.id, descricao: "Oferta no Banco Secreto" }));
+    await criarLancamento(tesoureiro, saida({ valor: "30,00", descricao: "Conta paga" }));
+
+    const p = await publicarPrestacao(tesoureiro, 2026, 9);
+    const aberta = await lerPrestacaoPublica(p.token);
+    const html = renderToStaticMarkup(createElement(VisaoPrestacao, { snapshot: aberta.snapshot!, versao: aberta.versao, publicadaEm: aberta.publicadaEm }));
+    for (const proibido of ["Zélia", "irmã", zelia.id, "Caixa", "Banco Secreto", "Tesoureiro Teste", "tes@igreja.org", "Oferta no Banco"]) {
+      expect(html).not.toContain(proibido);
+    }
+    // Mostra o que o snapshot tem.
+    for (const esperado of ["Prestação de contas", "Setembro de 2026", "Dízimo", "R$ 250,00", "Luz", "Conta paga", "Versão 1 publicada em"]) {
+      expect(html).toContain(esperado);
+    }
   });
 
   it("grava v1 com token aleatório, log e métrica; republicar gera v2", async () => {

@@ -41,8 +41,8 @@ const esquemaData = z
 
 const esquemaCriarConta = z.object({ nome: esquemaNome, tipo: esquemaTipoConta, saldoInicial: esquemaSaldo });
 const esquemaAtualizarConta = esquemaCriarConta.partial();
-const esquemaCriarCategoria = z.object({ nome: esquemaNome, tipo: esquemaTipoMovimento, nominal: esquemaBool });
-const esquemaAtualizarCategoria = z.object({ nome: esquemaNome.optional(), nominal: esquemaBool.optional() });
+const esquemaCriarCategoria = z.object({ nome: esquemaNome, tipo: esquemaTipoMovimento, nominal: esquemaBool, detalharPublico: esquemaBool.optional() });
+const esquemaAtualizarCategoria = z.object({ nome: esquemaNome.optional(), nominal: esquemaBool.optional(), detalharPublico: esquemaBool.optional() });
 const esquemaCriarMembro = z.object({
   nome: esquemaNome,
   telefone: esquemaTelefone.optional(),
@@ -176,7 +176,7 @@ export async function listarCategorias(
 
 export async function criarCategoria(
   ator: UsuarioAtual | null,
-  d: { nome: string; tipo: TipoMovimento; nominal: boolean },
+  d: { nome: string; tipo: TipoMovimento; nominal: boolean; detalharPublico?: boolean },
 ): Promise<Categoria> {
   const quem = exigir(ator, "cadastros.gerenciar");
   const v = validarComZod(esquemaCriarCategoria, d);
@@ -187,7 +187,8 @@ export async function criarCategoria(
         select: { id: true },
       });
       if (existente) throw new Validacao(MSG_CATEGORIA_DUPLICADA);
-      const c = await tx.categoria.create({ data: v });
+      // Detalhar na prestação pública só vale para saídas.
+      const c = await tx.categoria.create({ data: { ...v, detalharPublico: v.tipo === "SAIDA" && (v.detalharPublico ?? false) } });
       await registrarLog(tx, {
         usuarioId: quem.id,
         entidade: "Categoria",
@@ -205,7 +206,7 @@ export async function criarCategoria(
 export async function atualizarCategoria(
   ator: UsuarioAtual | null,
   id: string,
-  d: { nome?: string; nominal?: boolean; tipo?: TipoMovimento },
+  d: { nome?: string; nominal?: boolean; tipo?: TipoMovimento; detalharPublico?: boolean },
 ): Promise<void> {
   const quem = exigir(ator, "cadastros.gerenciar");
   const v = validarComZod(esquemaAtualizarCategoria, d);
@@ -218,10 +219,15 @@ export async function atualizarCategoria(
       }
       const nome = v.nome ?? atual.nome;
       const nominal = v.nominal ?? atual.nominal;
+      // Só saídas detalham gastos na prestação pública; em entradas o campo é ignorado.
+      const detalharPublico = atual.tipo === "SAIDA" ? (v.detalharPublico ?? atual.detalharPublico) : false;
       const mudancas: Mudanca[] = [];
       if (nome !== atual.nome) mudancas.push({ campo: "nome", de: atual.nome, para: nome });
       if (nominal !== atual.nominal) {
         mudancas.push({ campo: "nominal", de: simNao(atual.nominal), para: simNao(nominal) });
+      }
+      if (detalharPublico !== atual.detalharPublico) {
+        mudancas.push({ campo: "detalharPublico", de: simNao(atual.detalharPublico), para: simNao(detalharPublico) });
       }
       if (mudancas.length === 0) return;
       if (nome !== atual.nome) {
@@ -231,7 +237,7 @@ export async function atualizarCategoria(
         });
         if (outra) throw new Validacao(MSG_CATEGORIA_DUPLICADA);
       }
-      await tx.categoria.update({ where: { id }, data: { nome, nominal } });
+      await tx.categoria.update({ where: { id }, data: { nome, nominal, detalharPublico } });
       await logarMudancas(tx, quem, "Categoria", id, mudancas);
     });
   } catch (e) {

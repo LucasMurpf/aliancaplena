@@ -8,7 +8,7 @@ const ABAS: { tipo: TipoRelatorioTela; rotulo: string }[] = [
   { tipo: "contribuicoes", rotulo: "Contribuições" },
 ];
 
-type Props = { ativa: TipoRelatorioTela; filtros: FiltrosRelatorioUrl; comContribuicoes: boolean };
+type Props = { ativa: TipoRelatorioTela | "prestacao"; filtros: FiltrosRelatorioUrl; comContribuicoes: boolean };
 
 /** Abas entre relatórios; levam junto só o que vale para todos (período e conta). */
 export function AbasRelatorios({ ativa, filtros, comContribuicoes }: Props) {
@@ -28,6 +28,15 @@ export function AbasRelatorios({ ativa, filtros, comContribuicoes }: Props) {
           {a.rotulo}
         </Link>
       ))}
+      <Link
+        href="/relatorios/prestacao"
+        aria-current={ativa === "prestacao" ? "page" : undefined}
+        className={`flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-lg px-3 text-sm font-semibold ${
+          ativa === "prestacao" ? "bg-marca-600 text-white" : "text-marca-900 hover:bg-marca-50"
+        }`}
+      >
+        Prestação de contas
+      </Link>
     </nav>
   );
 }

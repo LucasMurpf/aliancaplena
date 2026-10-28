@@ -10,10 +10,10 @@ import { Botao } from "./ui/Botao";
 import { BORDA_ERRO, BORDA_OK, CLASSE_INPUT } from "./ui/estilos";
 
 type Props = {
-  inicial: { nomeIgreja: string; logoUrl: string; cnpj: string; metricasAtivas: boolean };
+  inicial: { nomeIgreja: string; logoUrl: string; cnpj: string; cidade: string; metricasAtivas: boolean };
 };
 
-const CAMPOS = ["nomeIgreja", "logoUrl", "cnpj"];
+const CAMPOS = ["nomeIgreja", "logoUrl", "cnpj", "cidade"];
 
 export function FormIgreja({ inicial }: Props) {
   const router = useRouter();
@@ -21,6 +21,7 @@ export function FormIgreja({ inicial }: Props) {
   const [nomeIgreja, setNomeIgreja] = useState(inicial.nomeIgreja);
   const [logoUrl, setLogoUrl] = useState(inicial.logoUrl);
   const [cnpj, setCnpj] = useState(inicial.cnpj);
+  const [cidade, setCidade] = useState(inicial.cidade);
   const [metricasAtivas, setMetricasAtivas] = useState(inicial.metricasAtivas);
   const [erros, setErros] = useState<Record<string, string>>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export function FormIgreja({ inicial }: Props) {
     setErroGeral(null);
     setSalvo(false);
     try {
-      const r = await atualizarConfiguracaoAction({ nomeIgreja, logoUrl: logoUrl.trim(), cnpj: cnpj.trim(), metricasAtivas });
+      const r = await atualizarConfiguracaoAction({ nomeIgreja, logoUrl: logoUrl.trim(), cnpj: cnpj.trim(), cidade: cidade.trim(), metricasAtivas });
       if (!r.ok) {
         registrarErroAcao(r);
         const destino = destinoDoErro(r.campo, CAMPOS);
@@ -88,6 +89,17 @@ export function FormIgreja({ inicial }: Props) {
         {erros.cnpj ? (
           <p id="igreja-cnpj-erro" className="text-sm text-red-700">
             {erros.cnpj}
+          </p>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="igreja-cidade" className="text-sm font-medium text-slate-800">
+          Cidade (usada no recibo)
+        </label>
+        <input id="igreja-cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} autoComplete="off" maxLength={80} aria-invalid={erros.cidade ? true : undefined} aria-describedby={erros.cidade ? "igreja-cidade-erro" : undefined} className={classe("cidade")} />
+        {erros.cidade ? (
+          <p id="igreja-cidade-erro" className="text-sm text-red-700">
+            {erros.cidade}
           </p>
         ) : null}
       </div>

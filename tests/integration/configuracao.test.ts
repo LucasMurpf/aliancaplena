@@ -73,6 +73,21 @@ describe("atualizarConfiguracao", () => {
     expect((await obterConfiguracaoAdmin(admin)).cnpj).toBe("12.345.678/0001-90");
   });
 
+  it("cidade: até 80 caracteres, vazia vira nulo, muda com log", async () => {
+    await expect(atualizarConfiguracao(admin, { nomeIgreja: "Igreja", cidade: "x".repeat(81) })).rejects.toBeInstanceOf(Validacao);
+    await atualizarConfiguracao(admin, { nomeIgreja: "Igreja", cidade: "  Colombo  " });
+    expect((await obterConfiguracaoAdmin(admin)).cidade).toBe("Colombo");
+    const logs = await prisma.log.findMany({ where: { entidade: "Configuracao", campo: "cidade" } });
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({ acao: "ALTEROU", valorNovo: "Colombo", usuarioId: admin.id });
+    // omitir não apaga; vazio apaga
+    await atualizarConfiguracao(admin, { nomeIgreja: "Igreja" });
+    expect((await obterConfiguracaoAdmin(admin)).cidade).toBe("Colombo");
+    await atualizarConfiguracao(admin, { nomeIgreja: "Igreja", cidade: "" });
+    expect((await obterConfiguracaoAdmin(admin)).cidade).toBeNull();
+    expect(await prisma.log.count({ where: { entidade: "Configuracao", campo: "cidade" } })).toBe(2);
+  });
+
   it("desligar métricas grava o log em Sim/Não e impede novos eventos", async () => {
     await atualizarConfiguracao(admin, { nomeIgreja: "Igreja", metricasAtivas: false });
     const log = await prisma.log.findFirstOrThrow({ where: { entidade: "Configuracao", acao: "ALTEROU", campo: "metricasAtivas" } });

@@ -68,7 +68,7 @@ const esquemaFiltroLista = z.object({
 const urlHttp = (t: string | null | undefined) => (t && /^https?:\/\//i.test(t) ? t : null);
 
 /** dd/mm/aaaa do instante `d` no fuso de São Paulo. */
-function dataSP(d: Date): string {
+export function dataSP(d: Date): string {
   const p = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
     year: "numeric",

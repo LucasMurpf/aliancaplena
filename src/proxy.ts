@@ -1,11 +1,12 @@
 // Proxy (antigo middleware, Next 16): protege as rotas e renova a sessão (expiração deslizante).
-// Públicas: /login, /instalacao e arquivos estáticos (excluídos pelo matcher).
+// Públicas: /login, /instalacao, a prestação de contas pública (/p/<token> e seu PDF) e arquivos
+// estáticos (excluídos pelo matcher). As públicas passam sem ler nem renovar sessão.
 // Roda só com `jose` (sessao-token), sem Prisma: a checagem de usuário ativo e da versão da sessão fica no layout.
 // Ao renovar, reemite o token com a mesma versão `v` que leu (quem decide se ela ainda vale é o banco).
 import { NextResponse, type NextRequest } from "next/server";
 import { NOME_COOKIE_SESSAO, criarTokenSessao, lerTokenSessao, opcoesCookieSessao } from "@/lib/sessao-token";
 
-const ROTAS_PUBLICAS = ["/login", "/instalacao"];
+const ROTAS_PUBLICAS = ["/login", "/instalacao", "/p", "/api/pdf/prestacao"];
 
 function ehPublica(pathname: string): boolean {
   return ROTAS_PUBLICAS.some((r) => pathname === r || pathname.startsWith(`${r}/`));
