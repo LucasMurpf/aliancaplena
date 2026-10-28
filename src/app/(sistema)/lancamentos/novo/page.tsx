@@ -7,9 +7,10 @@ import { Alerta } from "@/components/ui/Alerta";
 import { obterUsuarioAtual } from "@/lib/auth";
 import { hojeSP } from "@/lib/datas";
 import { pode } from "@/lib/permissoes";
+import { lerPrefillLancamento } from "@/lib/prefill-lancamento";
 import { listarCategorias, listarContas } from "@/lib/services/cadastros";
 
-type Props = { searchParams: Promise<{ aba?: string | string[]; origem?: string | string[] }> };
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default function PaginaNovoLancamento({ searchParams }: Props) {
   return (
@@ -31,6 +32,7 @@ async function Novo({ searchParams }: Props) {
   const viaAtalho = um(sp.origem) === "atalho";
   const [contas, categorias] = await Promise.all([listarContas(usuario), listarCategorias(usuario)]);
   const hoje = hojeSP().toISOString().slice(0, 10);
+  const inicial = transferencia ? undefined : lerPrefillLancamento(sp, { contas, hoje });
 
   const aba = (ativa: boolean) =>
     `flex min-h-11 flex-1 items-center justify-center rounded-lg text-sm font-semibold ${
@@ -59,6 +61,7 @@ async function Novo({ searchParams }: Props) {
           categorias={categorias.map((c) => ({ id: c.id, nome: c.nome, tipo: c.tipo, nominal: c.nominal }))}
           hoje={hoje}
           viaAtalho={viaAtalho}
+          inicial={inicial}
         />
       )}
     </div>

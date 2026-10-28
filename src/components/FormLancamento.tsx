@@ -22,6 +22,7 @@ import {
   type EstadoLancamento,
 } from "@/lib/form-lancamento";
 import { descarregarMetricas, rastrear } from "@/lib/metricas/cliente";
+import type { PrefillLancamento } from "@/lib/prefill-lancamento";
 import { CampoData } from "./CampoData";
 import { CampoDinheiro } from "./CampoDinheiro";
 import { SeletorMembro } from "./SeletorMembro";
@@ -38,6 +39,8 @@ type Props = {
   hoje: string;
   /** Aberto pelo botão flutuante ➕. */
   viaAtalho?: boolean;
+  /** Valores iniciais já validados vindos da URL (só no lançamento novo). */
+  inicial?: PrefillLancamento;
   /** Presente na edição. */
   edicao?: {
     id: string;
@@ -51,11 +54,21 @@ type Props = {
 // Campos do serviço → campo da tela.
 const CAMPO_TELA: Record<string, string> = { dataVencimento: "data", dataRealizacao: "data" };
 
-export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, edicao }: Props) {
+export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, inicial, edicao }: Props) {
   const router = useRouter();
   const novo = !edicao;
   const [estado, setEstado] = useState<EstadoLancamento>(
-    () => edicao?.estado ?? estadoInicial({ hoje, contaId: contas[0]?.id ?? "" }),
+    () => {
+      if (edicao) return edicao.estado;
+      const base = estadoInicial({ hoje, contaId: inicial?.contaId ?? contas[0]?.id ?? "" });
+      return {
+        ...base,
+        ...(inicial?.tipo ? { tipo: inicial.tipo } : {}),
+        ...(inicial?.data ? { data: inicial.data } : {}),
+        ...(inicial?.valor ? { valor: inicial.valor } : {}),
+        ...(inicial?.descricao ? { descricao: inicial.descricao } : {}),
+      };
+    },
   );
   const [anexos, setAnexos] = useState<File[]>([]);
   const [erros, setErros] = useState<Record<string, string>>({});

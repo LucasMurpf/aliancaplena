@@ -7,6 +7,7 @@ export type ItemMenu = { rotulo: string; href: string; icone: string; grupo?: st
 const ITENS: readonly (ItemMenu & { permissao: Permissao })[] = [
   { rotulo: "Início", href: "/", icone: "🏠", permissao: "financeiro.ver" },
   { rotulo: "Lançamentos", href: "/lancamentos", icone: "💰", permissao: "financeiro.ver" },
+  { rotulo: "Calculadora", href: "/calculadora", icone: "🧮", permissao: "financeiro.ver" },
   { rotulo: "Membros", href: "/membros", icone: "👥", permissao: "membros.ver_nomes" },
   { rotulo: "Contas", href: "/configuracoes/contas", icone: "🏦", grupo: "Configurações", permissao: "cadastros.gerenciar" },
   { rotulo: "Categorias", href: "/configuracoes/categorias", icone: "🏷️", grupo: "Configurações", permissao: "cadastros.gerenciar" },
