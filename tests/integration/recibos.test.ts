@@ -4,7 +4,7 @@ import type { Categoria, Conta, Membro } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { UsuarioAtual } from "@/lib/auth";
 import { NaoAutorizado, NaoEncontrado, RegraDeNegocio } from "@/lib/erros";
-import { dadosRecibo, emitirRecibo, reciboDoLancamento } from "@/lib/services/recibos";
+import { dadosRecibo, emitirRecibo, podeEmitirRecibo, reciboDoLancamento } from "@/lib/services/recibos";
 import {
   MSG_RECIBO_EMITIDO,
   cancelarLancamento,
@@ -324,5 +324,20 @@ describe("reciboDoLancamento", () => {
     const l = await criarLancamento(tesoureiro, lanc());
     await expect(reciboDoLancamento(eventos, l.id)).rejects.toBeInstanceOf(NaoAutorizado);
     await expect(reciboDoLancamento(null, l.id)).rejects.toBeInstanceOf(NaoAutorizado);
+  });
+});
+
+describe("podeEmitirRecibo", () => {
+  it("elegível só com realizado + nominal + as duas permissões", async () => {
+    const ok = await criarLancamento(tesoureiro, lanc());
+    expect(await podeEmitirRecibo(tesoureiro, ok)).toBe(true);
+    const previsto = await criarLancamento(tesoureiro, lanc({ realizado: false, dataRealizacao: undefined }));
+    expect(await podeEmitirRecibo(tesoureiro, previsto)).toBe(false);
+    const naoNominal = await criarLancamento(tesoureiro, lanc({ categoriaId: oferta.id, membroId: undefined }));
+    expect(await podeEmitirRecibo(tesoureiro, naoNominal)).toBe(false);
+    expect(await podeEmitirRecibo(eventos, ok)).toBe(false);
+    expect(await podeEmitirRecibo(null, ok)).toBe(false);
+    sem.verNomes = true;
+    expect(await podeEmitirRecibo(tesoureiro, ok)).toBe(false);
   });
 });

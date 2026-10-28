@@ -99,7 +99,7 @@ export function CorpoDespesas({ r }: { r: RelatorioDespesas }) {
             colunas={[{ rotulo: "Descrição" }, { rotulo: "Data" }, { rotulo: "Conta" }, { rotulo: "Valor", direita: true }]}
             linhas={g.itens.map((l, i) => ({
               chave: String(i),
-              celulas: [l.descricao?.trim() || g.categoria, formatarDataBR(l.data), l.conta, formatarBRL(l.valor)],
+              celulas: [l.descricao?.trim() || <span key="s" className="font-normal text-slate-500">Sem descrição</span>, formatarDataBR(l.data), l.conta, formatarBRL(l.valor)],
             }))}
             rodape={["Subtotal", "", "", formatarBRL(g.subtotal)]}
           />

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { entregarArquivo } from "@/lib/entregar-arquivo";
 import { rastrear } from "@/lib/metricas/cliente";
 import { Alerta } from "./ui/Alerta";
 import { Botao } from "./ui/Botao";
@@ -41,20 +42,13 @@ export function BotaoRecibo({ lancamentoId, numero, className = "" }: Props) {
       }
       const blob = await resposta.blob();
       const arquivo = new File([blob], nomeDoArquivo(resposta, numero), { type: "application/pdf" });
-      let compartilhado = false;
-      if (typeof navigator.canShare === "function" && navigator.canShare({ files: [arquivo] })) {
-        try {
-          await navigator.share({ files: [arquivo], title: "Recibo" });
-          compartilhado = true;
-        } catch (e) {
-          // O usuário fechou a folha de compartilhamento: não é erro e não conta como recibo entregue.
-          if (e instanceof DOMException && e.name === "AbortError") return;
-          throw e;
-        }
-      } else {
-        baixar(arquivo);
-      }
-      rastrear("recibo_emitido", { compartilhado });
+      const resultado = await entregarArquivo(arquivo, {
+        canShare: typeof navigator.canShare === "function" ? (d) => navigator.canShare(d) : undefined,
+        share: (d) => navigator.share(d),
+        baixar,
+      });
+      // O recibo já foi emitido, mesmo que o usuário tenha fechado a folha de compartilhamento.
+      if (resultado !== "cancelado") rastrear("recibo_emitido", { compartilhado: resultado === "compartilhado" });
       router.refresh(); // mostra o número do recibo recém-emitido
     } catch {
       setErro(MSG_FALHA);
