@@ -64,7 +64,8 @@ Se a contagem divergir do esperado, a observação explicando a diferença é ob
 
 - O que aparece: nome e logo da igreja, entradas, saídas, resultado do mês, saldo na data de corte e totais por categoria. Se o mês ainda não terminou, a página avisa que é uma prestação **parcial** e até que data.
 - O que nunca aparece: nomes de membros, contas, usuários, anexos e descrições de lançamentos (exceto nas saídas de categorias marcadas para detalhar).
-- **Detalhar por categoria**: em *Configurações > Categorias*, ative "Mostrar gastos detalhados na prestação pública" em uma categoria de saída (a semente já marca Luz) para listar data, descrição e valor de cada saída dela.
+- **Detalhar por categoria**: em *Configurações > Categorias*, ative "Mostrar gastos detalhados na prestação pública" em uma categoria de saída (a semente e a migração já marcam 7 categorias de saída) para listar data, descrição e valor de cada saída dela.
+  Antes da primeira publicação, revise as descrições das categorias marcadas para detalhar, porque lançamentos antigos passam a aparecer.
 - **Versões**: publicar de novo o mesmo mês cria uma nova versão com novo link. O link antigo continua mostrando o que foi publicado, com a faixa "Existe uma versão mais recente".
 - **Retirar**: na lista de prestações, *Retirar* informa o motivo e o link passa a mostrar "Esta prestação foi retirada pela igreja". Nada é apagado.
 - A página é `noindex` e cada abertura conta uma visualização.

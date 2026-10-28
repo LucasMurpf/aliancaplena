@@ -7,7 +7,7 @@ import { obterUsuarioAtual } from "@/lib/auth";
 import { hojeSP } from "@/lib/datas";
 import { lerFiltrosRelatorio } from "@/lib/filtros-relatorio";
 import { pode } from "@/lib/permissoes";
-import { rotuloMesExtenso } from "@/lib/prestacao/ui";
+import { acoesPrestacao, rotuloMesExtenso } from "@/lib/prestacao/ui";
 import { dataSP, listarPrestacoes } from "@/lib/services/prestacao";
 
 export default function PaginaPrestacoes() {
@@ -23,7 +23,7 @@ async function Lista() {
   const usuario = await obterUsuarioAtual();
   if (!usuario) redirect("/login?expirou=1");
   if (!pode(usuario.papeis, "financeiro.ver")) redirect("/em-breve");
-  const podeLancar = pode(usuario.papeis, "financeiro.lancar");
+  const { verPrevia, publicar: podeLancar } = acoesPrestacao(usuario.papeis);
 
   const hoje = hojeSP();
   const iso = hoje.toISOString().slice(0, 10);
@@ -49,7 +49,7 @@ async function Lista() {
       <p className="text-base text-slate-700">
         Publique a foto de um mês para os membros acompanharem as contas da igreja. O link mostra exatamente a versão publicada; nomes de membros nunca aparecem.
       </p>
-      {podeLancar ? <NovaPrestacao hoje={iso} mesAtual={iso.slice(0, 7)} /> : null}
+      {verPrevia ? <NovaPrestacao hoje={iso} mesAtual={iso.slice(0, 7)} /> : null}
       <ListaPrestacoes itens={itens} podeRetirar={podeLancar} />
     </div>
   );

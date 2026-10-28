@@ -1,4 +1,12 @@
 // Funções puras das telas de prestação de contas (sem React nem servidor).
+import type { Papel } from "@prisma/client";
+import { pode } from "@/lib/permissoes";
+
+/** Ver prévia (qualquer mês) pede `financeiro.ver`; publicar e retirar pedem `financeiro.lancar`. */
+export function acoesPrestacao(papeis: Papel[]): { verPrevia: boolean; publicar: boolean } {
+  return { verPrevia: pode(papeis, "financeiro.ver"), publicar: pode(papeis, "financeiro.lancar") };
+}
+
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 /** "outubro de 2026". */

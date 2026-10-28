@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { entregarLink, lerMesEscolhido, rotuloMesExtenso, textoConfirmarPublicacao, urlPublicaPrestacao } from "@/lib/prestacao/ui";
+import { acoesPrestacao, entregarLink, lerMesEscolhido, rotuloMesExtenso, textoConfirmarPublicacao, urlPublicaPrestacao } from "@/lib/prestacao/ui";
 
 const hoje = new Date(Date.UTC(2026, 9, 28)); // 28/10/2026
 const erro = (nome: string) => Object.assign(new Error(nome), { name: nome });
@@ -60,5 +60,16 @@ describe("entregarLink", () => {
     const copiar = vi.fn(async () => {});
     expect(await entregarLink(url, "P", { share: async () => { throw erro("NotAllowedError"); }, copiar })).toBe("copiado");
     expect(copiar).toHaveBeenCalledWith(url);
+  });
+});
+
+describe("acoesPrestacao", () => {
+  it("pastor (só financeiro.ver) vê a prévia mas não publica", () => {
+    expect(acoesPrestacao(["PASTOR"])).toEqual({ verPrevia: true, publicar: false });
+  });
+  it("tesoureiro e admin veem a prévia e publicam; eventos não faz nada", () => {
+    expect(acoesPrestacao(["TESOUREIRO"])).toEqual({ verPrevia: true, publicar: true });
+    expect(acoesPrestacao(["ADMIN"])).toEqual({ verPrevia: true, publicar: true });
+    expect(acoesPrestacao(["EVENTOS"])).toEqual({ verPrevia: false, publicar: false });
   });
 });
