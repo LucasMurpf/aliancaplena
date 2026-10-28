@@ -63,7 +63,7 @@ export function ListaPrestacoes({ itens, podeRetirar }: Props) {
         {itens.map((i) => (
           <li key={i.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
             <div className="flex items-start justify-between gap-2">
-              <p className="min-w-0 break-words text-base font-semibold capitalize text-slate-900">
+              <p className="min-w-0 break-words text-base font-semibold first-letter:uppercase text-slate-900">
                 {i.mes} · v{i.versao}
               </p>
               <Estado i={i} />
@@ -95,7 +95,7 @@ export function ListaPrestacoes({ itens, podeRetirar }: Props) {
           <tbody className="divide-y divide-slate-100 align-top">
             {itens.map((i) => (
               <tr key={i.id}>
-                <td className="px-4 py-3 font-medium capitalize text-slate-900">{i.mes}</td>
+                <td className="px-4 py-3 font-medium first-letter:uppercase text-slate-900">{i.mes}</td>
                 <td className="px-4 py-3 tabular-nums">v{i.versao}</td>
                 <td className="px-4 py-3">
                   {i.publicadaPor}

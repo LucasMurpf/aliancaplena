@@ -47,7 +47,7 @@ async function Previa({ params }: Props) {
         </Link>
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-marca-900">Prestação de contas</h1>
-          <p className="text-sm capitalize text-slate-600">{rotuloMesExtenso(ano, mes)}</p>
+          <p className="text-sm first-letter:uppercase text-slate-600">{rotuloMesExtenso(ano, mes)}</p>
         </div>
       </header>
 
