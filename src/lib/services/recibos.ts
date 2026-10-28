@@ -1,6 +1,6 @@
 // Recibo eletrônico de contribuição nominal: número sequencial por ano, fixo por lançamento.
 import { createHash } from "node:crypto";
-import { Prisma, StatusLancamento } from "@prisma/client";
+import { Prisma, StatusLancamento, TipoMovimento } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
 import { pode } from "@/lib/permissoes";
@@ -118,7 +118,7 @@ export async function emitirRecibo(ator: UsuarioAtual | null, lancamentoId: stri
     }
 
     const categoria = await tx.categoria.findUniqueOrThrow({ where: { id: l.categoriaId }, select: { nominal: true } });
-    if (l.status !== StatusLancamento.REALIZADO || !categoria.nominal || !l.membroId || !l.dataRealizacao) {
+    if (l.tipo !== TipoMovimento.ENTRADA || l.status !== StatusLancamento.REALIZADO || !categoria.nominal || !l.membroId || !l.dataRealizacao) {
       throw new RegraDeNegocio(MSG_RECIBO_INDISPONIVEL);
     }
 
@@ -168,15 +168,15 @@ export async function reciboDoLancamento(ator: UsuarioAtual | null, lancamentoId
   return r ? { numeroFormatado: formatarNumeroRecibo(r.ano, r.numero) } : null;
 }
 
-/** Regra de elegibilidade (sem permissões): realizado, categoria nominal e membro informado. */
-export function lancamentoElegivelParaRecibo(l: { status: StatusLancamento; membroId: string | null; categoria: { nominal: boolean } }): boolean {
-  return l.status === StatusLancamento.REALIZADO && l.categoria.nominal && l.membroId !== null;
+/** Regra de elegibilidade (sem permissões): entrada, realizada, categoria nominal e membro informado. */
+export function lancamentoElegivelParaRecibo(l: { tipo: TipoMovimento; status: StatusLancamento; membroId: string | null; categoria: { nominal: boolean } }): boolean {
+  return l.tipo === TipoMovimento.ENTRADA && l.status === StatusLancamento.REALIZADO && l.categoria.nominal && l.membroId !== null;
 }
 
 /** O ator pode emitir recibo (as duas permissões) e o lançamento é elegível? Não lança. */
 export async function podeEmitirRecibo(
   ator: UsuarioAtual | null,
-  l: { status: StatusLancamento; membroId: string | null; categoriaId: string },
+  l: { tipo: TipoMovimento; status: StatusLancamento; membroId: string | null; categoriaId: string },
 ): Promise<boolean> {
   if (!ator || !pode(ator.papeis, "financeiro.lancar") || !pode(ator.papeis, "membros.ver_nomes")) return false;
   const categoria = await prisma.categoria.findUnique({ where: { id: l.categoriaId }, select: { nominal: true } });

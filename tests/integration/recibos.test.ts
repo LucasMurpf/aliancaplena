@@ -12,7 +12,7 @@ import {
   editarLancamento,
   type DadosLancamento,
 } from "@/lib/services/lancamentos";
-import { criarConta } from "@/lib/services/cadastros";
+import { criarCategoria, criarConta } from "@/lib/services/cadastros";
 import { criarMembro, definirMembroAtivo } from "@/lib/services/cadastros";
 import { instalar } from "@/lib/services/instalacao";
 import { criarUsuario } from "@/lib/services/usuarios";
@@ -178,6 +178,15 @@ describe("emitirRecibo", () => {
     await expect(p).rejects.toBeInstanceOf(RegraDeNegocio);
     await expect(emitirRecibo(tesoureiro, l.id)).rejects.toThrow(MSG_NAO_NOMINAL);
     expect(await prisma.recibo.count()).toBe(0);
+  });
+
+  it("categoria nominal de SAÍDA (criada por admin) → RegraDeNegocio, sem recibo", async () => {
+    const ajuda = await criarCategoria(admin, { nome: "Ajuda social", tipo: "SAIDA", nominal: true });
+    const l = await criarLancamento(tesoureiro, lanc({ tipo: "SAIDA", categoriaId: ajuda.id }));
+    await expect(emitirRecibo(tesoureiro, l.id)).rejects.toBeInstanceOf(RegraDeNegocio);
+    await expect(emitirRecibo(tesoureiro, l.id)).rejects.toThrow(MSG_NAO_NOMINAL);
+    expect(await prisma.recibo.count()).toBe(0);
+    expect(await podeEmitirRecibo(tesoureiro, l)).toBe(false);
   });
 
   it("lançamento previsto → RegraDeNegocio", async () => {
