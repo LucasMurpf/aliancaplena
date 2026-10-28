@@ -7,6 +7,7 @@ import { formatarDataBR, hojeSP } from "@/lib/datas";
 import {
   abrirPrestacaoPublica,
   despublicarPrestacao,
+  lerPrestacaoPublica,
   listarPrestacoes,
   previaPrestacao,
   publicarPrestacao,
@@ -234,6 +235,34 @@ describe("publicarPrestacao", () => {
     expect(JSON.stringify(aberta.snapshot)).toContain("Conta original");
     expect(JSON.stringify(aberta.snapshot)).not.toContain("Conta corrigida");
     expect((await previaPrestacao(tesoureiro, 2026, 9)).resumo.saidas).toBe("R$ 95,00");
+  });
+});
+
+describe("lerPrestacaoPublica (somente leitura)", () => {
+  it("devolve o mesmo formato de abrirPrestacaoPublica sem contar visualização", async () => {
+    await criarLancamento(tesoureiro, lanc());
+    const v1 = await publicarPrestacao(tesoureiro, 2026, 9);
+    const v2 = await publicarPrestacao(tesoureiro, 2026, 9);
+    const lida = await lerPrestacaoPublica(v1.token);
+    expect(lida).toEqual({
+      estado: "ok",
+      snapshot: v1.snapshot,
+      versao: 1,
+      publicadaEm: formatarDataBR(hojeSP()),
+      versaoMaisRecente: { versao: 2, token: v2.token },
+    });
+    await lerPrestacaoPublica(v1.token);
+    expect((await prisma.prestacaoContas.findUniqueOrThrow({ where: { id: v1.id } })).visualizacoes).toBe(0);
+    expect((await abrirPrestacaoPublica(v1.token)).versao).toBe(1);
+    expect((await prisma.prestacaoContas.findUniqueOrThrow({ where: { id: v1.id } })).visualizacoes).toBe(1);
+  });
+
+  it("despublicada e token inválido não expõem nada", async () => {
+    const p = await publicarPrestacao(tesoureiro, 2026, 9);
+    await despublicarPrestacao(tesoureiro, p.id, "engano");
+    expect(await lerPrestacaoPublica(p.token)).toEqual({ estado: "despublicada" });
+    expect(await lerPrestacaoPublica("curto")).toEqual({ estado: "inexistente" });
+    expect(await lerPrestacaoPublica("A".repeat(43))).toEqual({ estado: "inexistente" });
   });
 });
 

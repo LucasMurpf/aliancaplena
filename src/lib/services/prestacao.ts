@@ -240,25 +240,11 @@ export async function listarPrestacoes(ator: UsuarioAtual | null, filtro: { ano?
   return linhas.map(({ publicadaPor, ...l }) => ({ ...l, publicadaPor: publicadaPor.nome }));
 }
 
-/**
- * Leitura pública (sem ator). Token fora do formato → 'inexistente' sem consultar o banco.
- * Só o estado 'ok' conta visualização (incremento atômico).
- */
-export async function abrirPrestacaoPublica(token: string): Promise<PrestacaoAberta> {
-  if (typeof token !== "string" || !FORMATO_TOKEN.test(token)) return { estado: "inexistente" };
-  const p = await prisma.prestacaoContas.findUnique({
-    where: { token },
-    select: { id: true, ano: true, mes: true, versao: true, dados: true, publicadaEm: true, despublicada: true },
-  });
-  if (!p) return { estado: "inexistente" };
-  if (p.despublicada) return { estado: "despublicada" };
+type LinhaPublica = { id: string; ano: number; mes: number; versao: number; dados: Prisma.JsonValue; publicadaEm: Date; despublicada: boolean };
 
-  const contou = await prisma.prestacaoContas.updateMany({
-    where: { id: p.id, despublicada: false },
-    data: { visualizacoes: { increment: 1 } },
-  });
-  if (contou.count === 0) return { estado: "despublicada" };
+const selecaoPublica = { id: true, ano: true, mes: true, versao: true, dados: true, publicadaEm: true, despublicada: true } as const;
 
+async function montarAberta(p: LinhaPublica): Promise<PrestacaoAberta> {
   const maisRecente = await prisma.prestacaoContas.findFirst({
     where: { ano: p.ano, mes: p.mes, despublicada: false, versao: { gt: p.versao } },
     select: { versao: true, token: true },
@@ -271,4 +257,31 @@ export async function abrirPrestacaoPublica(token: string): Promise<PrestacaoAbe
     publicadaEm: dataSP(p.publicadaEm),
     ...(maisRecente ? { versaoMaisRecente: maisRecente } : {}),
   };
+}
+
+/**
+ * Leitura pública (sem ator). Token fora do formato → 'inexistente' sem consultar o banco.
+ * Só o estado 'ok' conta visualização (incremento atômico).
+ */
+export async function abrirPrestacaoPublica(token: string): Promise<PrestacaoAberta> {
+  if (typeof token !== "string" || !FORMATO_TOKEN.test(token)) return { estado: "inexistente" };
+  const p = await prisma.prestacaoContas.findUnique({ where: { token }, select: selecaoPublica });
+  if (!p) return { estado: "inexistente" };
+  if (p.despublicada) return { estado: "despublicada" };
+
+  const contou = await prisma.prestacaoContas.updateMany({
+    where: { id: p.id, despublicada: false },
+    data: { visualizacoes: { increment: 1 } },
+  });
+  if (contou.count === 0) return { estado: "despublicada" };
+  return montarAberta(p);
+}
+
+/** Igual a `abrirPrestacaoPublica`, mas somente leitura: nunca soma visualização (ex.: baixar o PDF). */
+export async function lerPrestacaoPublica(token: string): Promise<PrestacaoAberta> {
+  if (typeof token !== "string" || !FORMATO_TOKEN.test(token)) return { estado: "inexistente" };
+  const p = await prisma.prestacaoContas.findUnique({ where: { token }, select: selecaoPublica });
+  if (!p) return { estado: "inexistente" };
+  if (p.despublicada) return { estado: "despublicada" };
+  return montarAberta(p);
 }
