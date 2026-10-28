@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Prisma } from "@prisma/client";
-import { relatorioParaPdf, nomeArquivoRelatorio, geradoEm } from "@/lib/pdf/dados";
+import { relatorioParaPdf, nomeArquivoRelatorio, geradoEm, linhaLocalData } from "@/lib/pdf/dados";
 
 const D = (v: string) => new Prisma.Decimal(v);
 const dia = (iso: string) => new Date(`${iso}T00:00:00Z`);
@@ -89,5 +89,15 @@ describe("nomeArquivoRelatorio / geradoEm", () => {
   });
   it("formata a hora no fuso de São Paulo", () => {
     expect(geradoEm(new Date("2026-10-27T15:05:00Z"))).toBe("27/10/2026 12:05");
+  });
+});
+
+describe("linhaLocalData (recibo)", () => {
+  it("com cidade: 'Cidade, data.'", () => {
+    expect(linhaLocalData("Curitiba", "27 de outubro de 2026")).toBe("Curitiba, 27 de outubro de 2026.");
+  });
+  it("sem cidade (null, vazia ou só espaços) omite a cidade, sem cair em Colombo", () => {
+    expect(linhaLocalData(null, "27 de outubro de 2026")).toBe("27 de outubro de 2026.");
+    expect(linhaLocalData("  ", "27 de outubro de 2026")).toBe("27 de outubro de 2026.");
   });
 });

@@ -1,6 +1,7 @@
 // Recibo A5 (retrato) com marca "CANCELADO" diagonal quando o lançamento foi cancelado.
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { DadosRecibo } from "@/lib/services/recibos";
+import { linhaLocalData } from "./dados";
 import { COR, estilos } from "./estilos";
 import type { LogoPdf } from "./logo";
 
@@ -21,7 +22,6 @@ const e = StyleSheet.create({
 });
 
 export function Recibo({ dados, logo }: { dados: DadosRecibo; logo: LogoPdf | null }) {
-  const cidade = dados.igreja.cidade ?? "Colombo";
   return (
     <Document title={`Recibo ${dados.numeroFormatado}`} author={dados.igreja.nome}>
       <Page size="A5" style={e.pagina}>
@@ -42,9 +42,7 @@ export function Recibo({ dados, logo }: { dados: DadosRecibo; logo: LogoPdf | nu
             Recebemos de <Text style={e.forte}>{dados.membro}</Text> a importância de <Text style={e.forte}>{dados.valor}</Text> ({dados.valorExtenso}), referente a{" "}
             <Text style={e.forte}>{dados.categoria}</Text>, realizada em {dados.dataRealizacao}.
           </Text>
-          <Text style={e.data}>
-            {cidade}, {dados.dataPorExtenso}.
-          </Text>
+          <Text style={e.data}>{linhaLocalData(dados.igreja.cidade, dados.dataPorExtenso)}</Text>
           <View style={e.assinatura}>
             <View style={e.linhaAssinatura}>
               <Text>{dados.igreja.nome}</Text>

@@ -11,6 +11,8 @@ type Props = {
   lancamentoId: string;
   /** "2026/000012" quando já existe recibo; muda o rótulo do botão. */
   numero?: string | null;
+  /** Lançamento cancelado: só baixa o recibo já emitido. */
+  cancelado?: boolean;
   className?: string;
 };
 
@@ -24,7 +26,7 @@ function nomeDoArquivo(resposta: Response, numero: string | null | undefined): s
 }
 
 /** Gera o recibo no servidor; no celular abre o compartilhamento nativo com o PDF, senão baixa. */
-export function BotaoRecibo({ lancamentoId, numero, className = "" }: Props) {
+export function BotaoRecibo({ lancamentoId, numero, cancelado = false, className = "" }: Props) {
   const router = useRouter();
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function BotaoRecibo({ lancamentoId, numero, className = "" }: Props) {
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       <Botao onClick={gerar} disabled={gerando} className="w-full sm:w-auto">
-        {gerando ? "Gerando recibo…" : numero ? `Baixar recibo ${numero}` : "Gerar recibo"}
+        {gerando ? "Gerando recibo…" : numero ? (cancelado ? `Baixar recibo nº ${numero} (cancelado)` : `Baixar recibo ${numero}`) : "Gerar recibo"}
       </Botao>
       {erro ? <Alerta tipo="erro">{erro}</Alerta> : null}
     </div>

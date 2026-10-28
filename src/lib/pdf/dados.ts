@@ -171,3 +171,9 @@ export function cabecalhoDownload(nome: string): string {
   const ascii = nome.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(nome)}`;
 }
+
+/** Linha de local e data do recibo: sem cidade configurada, só a data ("27 de outubro de 2026."). */
+export function linhaLocalData(cidade: string | null | undefined, dataPorExtenso: string): string {
+  const c = cidade?.trim();
+  return c ? `${c}, ${dataPorExtenso}.` : `${dataPorExtenso}.`;
+}
