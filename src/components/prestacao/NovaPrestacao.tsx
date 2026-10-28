@@ -7,7 +7,7 @@ import { BORDA_ERRO, BORDA_OK, CLASSE_INPUT } from "@/components/ui/estilos";
 import { lerMesEscolhido } from "@/lib/prestacao/ui";
 
 /** Escolha do mês (aaaa-mm, atual ou passado) para ver a prévia e publicar. `hoje` = aaaa-mm-dd em São Paulo. */
-export function NovaPrestacao({ hoje, mesAtual }: { hoje: string; mesAtual: string }) {
+export function NovaPrestacao({ hoje, mesAtual, podePublicar }: { hoje: string; mesAtual: string; podePublicar: boolean }) {
   const router = useRouter();
   const [valor, setValor] = useState(mesAtual);
   const [erro, setErro] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function NovaPrestacao({ hoje, mesAtual }: { hoje: string; mesAtual: stri
     <form onSubmit={aoEnviar} noValidate className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:flex-row sm:items-end">
       <div className="flex flex-1 flex-col gap-1">
         <label htmlFor="nova-prestacao-mes" className="text-sm font-medium text-slate-800">
-          Nova prestação — mês
+          {podePublicar ? "Nova prestação — mês" : "Ver prévia de um mês"}
         </label>
         <input
           id="nova-prestacao-mes"

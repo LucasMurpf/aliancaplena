@@ -252,7 +252,7 @@ export function FormContagem({ contas, hoje }: Props) {
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-2 backdrop-blur lg:left-64 lg:px-8">
         <div className="mx-auto flex max-w-xl flex-col gap-2">
-          <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)] gap-2 text-center">
+          <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-center">
             <div>
               <dt className="text-xs text-slate-600">Contado</dt>
               <dd className="text-sm font-bold tabular-nums text-slate-900">{formatarCentavos(contado)}</dd>
@@ -263,7 +263,8 @@ export function FormContagem({ contas, hoje }: Props) {
                 {calculando ? "calculando…" : esperado ? esperado.texto : "—"}
               </dd>
             </div>
-            <div>
+            {/* Diferença em linha própria: no celular (375px) os valores longos não quebram. */}
+            <div className="col-span-2">
               <dt className="text-xs text-slate-600">Diferença</dt>
               <dd aria-live="polite" className={`text-sm font-bold tabular-nums ${diferenca ? COR[diferenca.estado] : "text-slate-500"}`}>
                 {calculando ? "…" : diferenca ? diferenca.texto : "—"}

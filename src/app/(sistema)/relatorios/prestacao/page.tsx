@@ -49,7 +49,7 @@ async function Lista() {
       <p className="text-base text-slate-700">
         Publique a foto de um mês para os membros acompanharem as contas da igreja. O link mostra exatamente a versão publicada; nomes de membros nunca aparecem.
       </p>
-      {verPrevia ? <NovaPrestacao hoje={iso} mesAtual={iso.slice(0, 7)} /> : null}
+      {verPrevia ? <NovaPrestacao hoje={iso} mesAtual={iso.slice(0, 7)} podePublicar={podeLancar} /> : null}
       <ListaPrestacoes itens={itens} podeRetirar={podeLancar} />
     </div>
   );
