@@ -28,5 +28,5 @@ test("no celular: lança um dízimo e vê o valor em Entradas no Início", async
   await page.getByRole("button", { name: "Abrir menu" }).click();
   await page.getByRole("navigation", { name: "Menu principal" }).getByRole("link", { name: /Início/ }).click();
   await expect(page).toHaveURL("/");
-  await expect(page.getByRole("region", { name: "Entradas", exact: true })).toContainText(/R\$\s*1\.234,56/);
+  await expect(page.getByRole("region", { name: "Entradas", exact: true })).toContainText(/R\$\s*1\.334,56/); // 1.234,56 lançado aqui + R$ 100,00 do dízimo da semente
 });
