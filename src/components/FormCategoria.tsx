@@ -13,7 +13,7 @@ import { Selecao } from "./ui/Selecao";
 
 type Props = {
   id?: string;
-  inicial?: { nome: string; tipo: "ENTRADA" | "SAIDA"; nominal: boolean };
+  inicial?: { nome: string; tipo: "ENTRADA" | "SAIDA"; nominal: boolean; detalharPublico?: boolean };
 };
 
 const CAMPOS = ["nome", "tipo"];
@@ -25,6 +25,7 @@ export function FormCategoria({ id, inicial }: Props) {
   const [nome, setNome] = useState(inicial?.nome ?? "");
   const [tipo, setTipo] = useState<"ENTRADA" | "SAIDA">(inicial?.tipo ?? "ENTRADA");
   const [nominal, setNominal] = useState(inicial?.nominal ?? false);
+  const [detalharPublico, setDetalharPublico] = useState(inicial?.detalharPublico ?? false);
   const [erros, setErros] = useState<Record<string, string>>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
@@ -39,12 +40,12 @@ export function FormCategoria({ id, inicial }: Props) {
     setSalvo(false);
     try {
       if (id) {
-        const r = await atualizarCategoriaAction(id, { nome, nominal });
+        const r = await atualizarCategoriaAction(id, { nome, nominal, ...(tipo === "SAIDA" ? { detalharPublico } : {}) });
         if (!r.ok) return falhou(r);
         setSalvo(true);
         router.replace(pathname); // tira o ?salvo=1 da URL e atualiza a tela
       } else {
-        const r = await criarCategoriaAction({ nome, tipo, nominal });
+        const r = await criarCategoriaAction({ nome, tipo, nominal, detalharPublico: tipo === "SAIDA" && detalharPublico });
         if (!r.ok) return falhou(r);
         router.push(`/configuracoes/categorias/${r.id}?salvo=1`);
       }
@@ -101,6 +102,15 @@ export function FormCategoria({ id, inicial }: Props) {
         <input type="checkbox" checked={nominal} onChange={(e) => setNominal(e.target.checked)} className="size-5 accent-marca-600" />
         Exige membro (ex.: Dízimo)
       </label>
+      {tipo === "SAIDA" ? (
+        <label className="flex min-h-11 items-start gap-3 text-sm text-slate-800">
+          <input type="checkbox" checked={detalharPublico} onChange={(e) => setDetalharPublico(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-marca-600" />
+          <span>
+            Mostrar gastos detalhados na prestação pública
+            <span className="block text-xs text-slate-600">Cada gasto desta categoria aparece com data, descrição e valor.</span>
+          </span>
+        </label>
+      ) : null}
       <div className="sticky bottom-0 z-10 -mx-5 -mb-5 border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur">
         <Botao type="submit" disabled={enviando} className="w-full">
           {enviando ? "Salvando…" : id ? "Salvar alterações" : "Cadastrar categoria"}

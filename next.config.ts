@@ -8,12 +8,19 @@ const CABECALHOS_SEGURANCA = [
   { key: "X-Content-Type-Options", value: "nosniff" },
 ];
 
+const SEM_INDEXAR = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
+
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
   async headers() {
-    return [{ source: "/:path*", headers: CABECALHOS_SEGURANCA }];
+    return [
+      { source: "/:path*", headers: CABECALHOS_SEGURANCA },
+      // Prestação pública e seu PDF: nunca indexar, mesmo que alguém publique o link.
+      { source: "/p/:path*", headers: SEM_INDEXAR },
+      { source: "/api/pdf/prestacao/:path*", headers: SEM_INDEXAR },
+    ];
   },
   turbopack: {
     rules: {

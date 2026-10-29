@@ -18,6 +18,11 @@ export const CATALOGO = {
   transferencia_criada: [],
   anexo_enviado: ["tipo"],
   membro_cadastrado_rapido: ["origem"],
+  relatorio_gerado: ["relatorio", "formato"],
+  recibo_emitido: ["compartilhado"],
+  prestacao_publicada: ["versao"],
+  contagem_registrada: ["modo", "divergente"],
+  indicadores_aberto: [],
 } as const satisfies Record<string, readonly string[]>;
 
 export type NomeEvento = keyof typeof CATALOGO;

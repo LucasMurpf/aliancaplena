@@ -9,12 +9,13 @@ import { validarComZod } from "@/lib/validacao";
 
 export type ConfiguracaoPublica = { nomeIgreja: string; logoUrl: string | null };
 
-export type ConfiguracaoAdmin = ConfiguracaoPublica & { id: string; cnpj: string | null; metricasAtivas: boolean };
+export type ConfiguracaoAdmin = ConfiguracaoPublica & { id: string; cnpj: string | null; cidade: string | null; metricasAtivas: boolean };
 
 export type DadosConfiguracao = {
   nomeIgreja: string;
   logoUrl?: string | null;
   cnpj?: string | null;
+  cidade?: string | null;
   metricasAtivas?: boolean;
 };
 
@@ -34,7 +35,7 @@ export async function obterConfiguracaoAdmin(ator: UsuarioAtual | null): Promise
   exigir(ator, "admin");
   const c = await prisma.configuracao.findFirst({ orderBy: { criadoEm: "asc" } });
   if (!c) throw new NaoEncontrado(MSG_NAO_ENCONTRADA);
-  return { id: c.id, nomeIgreja: c.nomeIgreja, logoUrl: c.logoUrl, cnpj: c.cnpj, metricasAtivas: c.metricasAtivas };
+  return { id: c.id, nomeIgreja: c.nomeIgreja, logoUrl: c.logoUrl, cnpj: c.cnpj, cidade: c.cidade, metricasAtivas: c.metricasAtivas };
 }
 
 function ehUrlHttp(texto: string): boolean {
@@ -63,16 +64,23 @@ const esquemaAtualizar = z.object({
     .max(18, "O CNPJ deve ter no máximo 18 caracteres")
     .transform((t) => (t === "" ? null : t))
     .optional(),
+  cidade: z
+    .string({ error: "Cidade inválida" })
+    .trim()
+    .max(80, "A cidade deve ter no máximo 80 caracteres")
+    .transform((t) => (t === "" ? null : t))
+    .optional(),
   metricasAtivas: z.boolean({ error: "Valor inválido" }).optional(),
 });
 
 const simNao = (b: boolean) => (b ? "Sim" : "Não");
 
 // Campos comparados para o log: o que muda aparece como um registro ALTEROU por campo.
-const textoConfiguracao = (c: { nomeIgreja: string; logoUrl: string | null; cnpj: string | null; metricasAtivas: boolean }) => ({
+const textoConfiguracao = (c: { nomeIgreja: string; logoUrl: string | null; cnpj: string | null; cidade: string | null; metricasAtivas: boolean }) => ({
   nomeIgreja: c.nomeIgreja as string | null,
   logoUrl: c.logoUrl,
   cnpj: c.cnpj,
+  cidade: c.cidade,
   metricasAtivas: simNao(c.metricasAtivas),
 });
 
@@ -87,6 +95,7 @@ export async function atualizarConfiguracao(ator: UsuarioAtual | null, d: DadosC
       nomeIgreja: v.nomeIgreja,
       logoUrl: v.logoUrl === undefined ? atual.logoUrl : v.logoUrl,
       cnpj: v.cnpj === undefined ? atual.cnpj : v.cnpj,
+      cidade: v.cidade === undefined ? atual.cidade : v.cidade,
       metricasAtivas: v.metricasAtivas ?? atual.metricasAtivas,
     };
     const antes = textoConfiguracao(atual);

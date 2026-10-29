@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
 import type { Prisma } from "@prisma/client";
 
-type CategoriaInicial = { nome: string; tipo: "ENTRADA" | "SAIDA"; nominal: boolean };
+type CategoriaInicial = { nome: string; tipo: "ENTRADA" | "SAIDA"; nominal: boolean; detalharPublico?: boolean };
 
 // Spec §3 "Dados iniciais": 5 entradas e 7 saídas. Nenhuma conta é criada aqui.
 const CATEGORIAS: CategoriaInicial[] = [
@@ -10,13 +10,13 @@ const CATEGORIAS: CategoriaInicial[] = [
   { nome: "Missões", tipo: "ENTRADA", nominal: false },
   { nome: "Doação", tipo: "ENTRADA", nominal: false },
   { nome: "Rendimentos", tipo: "ENTRADA", nominal: false },
-  { nome: "Água", tipo: "SAIDA", nominal: false },
-  { nome: "Luz", tipo: "SAIDA", nominal: false },
-  { nome: "Aluguel", tipo: "SAIDA", nominal: false },
-  { nome: "Combustível", tipo: "SAIDA", nominal: false },
-  { nome: "Materiais", tipo: "SAIDA", nominal: false },
-  { nome: "Manutenção", tipo: "SAIDA", nominal: false },
-  { nome: "Missões (repasse)", tipo: "SAIDA", nominal: false },
+  { nome: "Água", tipo: "SAIDA", nominal: false, detalharPublico: true },
+  { nome: "Luz", tipo: "SAIDA", nominal: false, detalharPublico: true },
+  { nome: "Aluguel", tipo: "SAIDA", nominal: false, detalharPublico: true },
+  { nome: "Combustível", tipo: "SAIDA", nominal: false, detalharPublico: true },
+  { nome: "Materiais", tipo: "SAIDA", nominal: false, detalharPublico: true },
+  { nome: "Manutenção", tipo: "SAIDA", nominal: false, detalharPublico: true },
+  { nome: "Missões (repasse)", tipo: "SAIDA", nominal: false, detalharPublico: true },
 ];
 
 // Idempotente por (nome, tipo): rodar de novo não duplica nem altera categorias existentes.
@@ -26,7 +26,7 @@ export async function semearCategorias(prisma: Prisma.TransactionClient): Promis
     await prisma.categoria.upsert({
       where: { nome_tipo: { nome: c.nome, tipo: c.tipo } },
       update: {},
-      create: { ...c, ativa: true },
+      create: { ...c, detalharPublico: c.detalharPublico ?? false, ativa: true },
     });
   }
 }

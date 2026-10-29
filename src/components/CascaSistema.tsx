@@ -25,6 +25,9 @@ export function CascaSistema({ itens, nomeIgreja, logoUrl, nomeUsuario, podeLanc
   // O atalho ➕ ficaria sobre os botões de Salvar nas telas de formulário (lançamentos, membros e configurações).
   const emFormulario =
     pathname.startsWith("/lancamentos/novo") ||
+    pathname.startsWith("/calculadora/nova") ||
+    pathname.startsWith("/relatorios") ||
+    pathname.startsWith("/indicadores") ||
     /^\/lancamentos\/[^/]+\/editar/.test(pathname) ||
     /^\/membros\/(novo|[^/]+)$/.test(pathname) ||
     pathname.startsWith("/configuracoes/");

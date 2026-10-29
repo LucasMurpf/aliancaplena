@@ -22,8 +22,10 @@ import {
   type EstadoLancamento,
 } from "@/lib/form-lancamento";
 import { descarregarMetricas, rastrear } from "@/lib/metricas/cliente";
+import type { PrefillLancamento } from "@/lib/prefill-lancamento";
 import { CampoData } from "./CampoData";
 import { CampoDinheiro } from "./CampoDinheiro";
+import { BotaoRecibo } from "./BotaoRecibo";
 import { SeletorMembro } from "./SeletorMembro";
 import { Alerta } from "./ui/Alerta";
 import { Botao } from "./ui/Botao";
@@ -38,6 +40,8 @@ type Props = {
   hoje: string;
   /** Aberto pelo botão flutuante ➕. */
   viaAtalho?: boolean;
+  /** Valores iniciais já validados vindos da URL (só no lançamento novo). */
+  inicial?: PrefillLancamento;
   /** Presente na edição. */
   edicao?: {
     id: string;
@@ -51,16 +55,28 @@ type Props = {
 // Campos do serviço → campo da tela.
 const CAMPO_TELA: Record<string, string> = { dataVencimento: "data", dataRealizacao: "data" };
 
-export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, edicao }: Props) {
+export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, inicial, edicao }: Props) {
   const router = useRouter();
   const novo = !edicao;
   const [estado, setEstado] = useState<EstadoLancamento>(
-    () => edicao?.estado ?? estadoInicial({ hoje, contaId: contas[0]?.id ?? "" }),
+    () => {
+      if (edicao) return edicao.estado;
+      const base = estadoInicial({ hoje, contaId: inicial?.contaId ?? contas[0]?.id ?? "" });
+      return {
+        ...base,
+        ...(inicial?.tipo ? { tipo: inicial.tipo } : {}),
+        ...(inicial?.data ? { data: inicial.data } : {}),
+        ...(inicial?.valor ? { valor: inicial.valor } : {}),
+        ...(inicial?.descricao ? { descricao: inicial.descricao } : {}),
+      };
+    },
   );
   const [anexos, setAnexos] = useState<File[]>([]);
   const [erros, setErros] = useState<Record<string, string>>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [salvoMsg, setSalvoMsg] = useState(false);
+  /** Lançamento recém-salvo (em "salvar e lançar outro") que aceita recibo. */
+  const [reciboId, setReciboId] = useState<string | null>(null);
   const [enviando, setEnviando] = useState<null | "salvar" | "outro">(null);
   const valorRef = useRef<HTMLInputElement>(null);
   const inicio = useRef(0);
@@ -105,6 +121,7 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, ed
     setErros({});
     setErroGeral(null);
     setSalvoMsg(false);
+    setReciboId(null);
     try {
       const dados = montarDados(estado, categorias, edicao?.vencimentoOriginal);
       const r = edicao ? await editarLancamentoAction(edicao.id, dados, edicao.versao) : await salvarLancamentoAction(dados);
@@ -138,6 +155,7 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, ed
         setEstado(aposSalvarELancarOutro(estado));
         setAnexos([]);
         setSalvoMsg(true);
+        setReciboId("podeRecibo" in r && r.podeRecibo ? id : null);
         salvo.current = false;
         inicio.current = Date.now();
         rastrear("lancamento_iniciado", { tipo: estado.tipo });
@@ -191,7 +209,12 @@ export function FormLancamento({ contas, categorias, hoje, viaAtalho = false, ed
 
   return (
     <form onSubmit={aoEnviar} className="flex flex-col gap-4" noValidate>
-      {salvoMsg ? <Alerta tipo="sucesso">Lançamento salvo</Alerta> : null}
+      {salvoMsg ? (
+        <Alerta tipo="sucesso">
+          <p>Lançamento salvo</p>
+          {reciboId ? <BotaoRecibo key={reciboId} lancamentoId={reciboId} className="mt-2" /> : null}
+        </Alerta>
+      ) : null}
       {erroGeral ? <Alerta tipo="erro">{erroGeral}</Alerta> : null}
 
       {edicao ? <input type="hidden" name="versao" value={edicao.versao} /> : null}

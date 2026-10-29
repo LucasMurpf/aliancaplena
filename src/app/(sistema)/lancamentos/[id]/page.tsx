@@ -5,6 +5,7 @@ import { AbaHistorico } from "@/components/AbaHistorico";
 import { AcoesLancamento } from "@/components/AcoesLancamento";
 import { AdicionarAnexos } from "@/components/AdicionarAnexos";
 import { AnexoLink } from "@/components/AnexoLink";
+import { BotaoRecibo } from "@/components/BotaoRecibo";
 import { Alerta } from "@/components/ui/Alerta";
 import { obterUsuarioAtual } from "@/lib/auth";
 import { formatarDataBR, hojeSP } from "@/lib/datas";
@@ -12,6 +13,8 @@ import { formatarBRL } from "@/lib/dinheiro";
 import { ErroApp } from "@/lib/erros";
 import { pode } from "@/lib/permissoes";
 import { obterLancamento } from "@/lib/services/lancamentos";
+import { secaoRecibo } from "@/lib/recibo-visibilidade";
+import { podeEmitirRecibo, reciboDoLancamento } from "@/lib/services/recibos";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -60,6 +63,11 @@ async function Detalhe({ params, searchParams }: Props) {
     throw e;
   });
   const podeLancar = pode(usuario.papeis, "financeiro.lancar");
+  const elegivelRecibo = await podeEmitirRecibo(usuario, l);
+  const temPermissoesRecibo = podeLancar && pode(usuario.papeis, "membros.ver_nomes");
+  const cancelado = l.status === "CANCELADO";
+  const recibo = elegivelRecibo || (cancelado && temPermissoesRecibo) ? await reciboDoLancamento(usuario, l.id) : null;
+  const secao = secaoRecibo({ temPermissoes: temPermissoesRecibo, elegivel: elegivelRecibo, numero: recibo?.numeroFormatado ?? null, cancelado });
   const podeHistorico = pode(usuario.papeis, "historico.ver");
   const historico = podeHistorico && um(sp.aba) === "historico";
   const entrada = l.tipo === "ENTRADA";
@@ -102,6 +110,22 @@ async function Detalhe({ params, searchParams }: Props) {
           {l.motivoCancelamento ? <Linha rotulo="Motivo do cancelamento">{l.motivoCancelamento}</Linha> : null}
         </dl>
       </section>
+
+      {secao !== "oculta" ? (
+        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200" aria-labelledby="titulo-recibo">
+          <h2 id="titulo-recibo" className="text-base font-semibold text-slate-900">
+            Recibo
+          </h2>
+          <p className="mb-3 mt-1 text-sm text-slate-600">
+            {secao === "baixar-cancelado"
+              ? `Recibo nº ${recibo?.numeroFormatado} emitido antes do cancelamento. O PDF sai com a marca CANCELADO.`
+              : recibo
+                ? `Recibo nº ${recibo.numeroFormatado} já emitido. Gerar de novo mantém o mesmo número.`
+                : "Gere o recibo em PDF e envie ao membro."}
+          </p>
+          <BotaoRecibo lancamentoId={l.id} numero={recibo?.numeroFormatado} cancelado={secao === "baixar-cancelado"} />
+        </section>
+      ) : null}
 
       <AcoesLancamento id={l.id} status={l.status} hoje={hoje} podeLancar={podeLancar} />
 

@@ -42,6 +42,11 @@ enum Dispositivo {
   PC
 }
 
+enum ModoContagem {
+  CULTO
+  CAIXA
+}
+
 // Uma linha só, criada na Instalação.
 model Configuracao {
   id             String   @id @default(cuid())
@@ -49,6 +54,7 @@ model Configuracao {
   logoUrl        String?
   cnpj           String?
   metricasAtivas Boolean  @default(true)
+  cidade         String?
   criadoEm       DateTime @default(now())
 }
 
@@ -59,16 +65,20 @@ model Usuario {
   email        String   @unique
   senhaHash    String
   ativo        Boolean  @default(true)
+  versaoSessao Int      @default(0)
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
   papeis                 UsuarioPapel[]
-  lancamentosCriados     Lancamento[]    @relation("LancamentoCriadoPor")
-  lancamentosAtualizados Lancamento[]    @relation("LancamentoAtualizadoPor")
+  lancamentosCriados     Lancamento[]      @relation("LancamentoCriadoPor")
+  lancamentosAtualizados Lancamento[]      @relation("LancamentoAtualizadoPor")
   transferenciasCriadas  Transferencia[]
   anexosEnviados         Anexo[]
   logs                   Log[]
   eventosUso             EventoUso[]
+  contagensCriadas       ContagemCaixa[]
+  recibosEmitidos        Recibo[]
+  prestacoesPublicadas   PrestacaoContas[]
 }
 
 model UsuarioPapel {
@@ -102,16 +112,19 @@ model Conta {
   ativa        Boolean   @default(true)
 
   lancamentos             Lancamento[]
+  contagens               ContagemCaixa[]
   transferenciasEnviadas  Transferencia[] @relation("TransferenciaOrigem")
   transferenciasRecebidas Transferencia[] @relation("TransferenciaDestino")
 }
 
 model Categoria {
-  id      String        @id @default(cuid())
-  nome    String
-  tipo    TipoMovimento
-  nominal Boolean       @default(false)
-  ativa   Boolean       @default(true)
+  id              String        @id @default(cuid())
+  nome            String
+  tipo            TipoMovimento
+  nominal         Boolean       @default(false)
+  ativa           Boolean       @default(true)
+  // Na prestação pública, detalha esta saída por categoria.
+  detalharPublico Boolean       @default(false)
 
   lancamentos Lancamento[]
 
@@ -141,6 +154,7 @@ model Lancamento {
   criadoPor     Usuario   @relation("LancamentoCriadoPor", fields: [criadoPorId], references: [id])
   atualizadoPor Usuario?  @relation("LancamentoAtualizadoPor", fields: [atualizadoPorId], references: [id])
   anexos        Anexo[]
+  recibo        Recibo?
 
   @@index([status, dataVencimento])
   @@index([dataRealizacao])
@@ -168,7 +182,7 @@ model Anexo {
   id           String   @id @default(cuid())
   lancamentoId String
   // Chave do arquivo no storage; o arquivo fica fora do banco.
-  url          String
+  url          String   @unique
   nomeArquivo  String
   mimeType     String
   tamanho      Int
@@ -214,4 +228,72 @@ model EventoUso {
   usuario Usuario? @relation(fields: [usuarioId], references: [id])
 
   @@index([evento, dataHora])
+}
+
+// Só inserção. Os itens guardam a contagem por denominação (em centavos).
+model ContagemCaixa {
+  id           String       @id @default(cuid())
+  modo         ModoContagem
+  contaId      String
+  data         DateTime     @db.Date
+  totalContado Decimal      @db.Decimal(12, 2)
+  esperado     Decimal      @db.Decimal(12, 2)
+  diferenca    Decimal      @db.Decimal(12, 2)
+  observacao   String?
+  criadoPorId  String
+  criadoEm     DateTime     @default(now())
+
+  conta     Conta          @relation(fields: [contaId], references: [id])
+  criadoPor Usuario        @relation(fields: [criadoPorId], references: [id])
+  itens     ContagemItem[]
+}
+
+model ContagemItem {
+  contagemId          String
+  denominacaoCentavos Int
+  quantidade          Int
+
+  contagem ContagemCaixa @relation(fields: [contagemId], references: [id])
+
+  @@id([contagemId, denominacaoCentavos])
+}
+
+model Recibo {
+  id                String   @id @default(cuid())
+  lancamentoId      String   @unique
+  ano               Int
+  numero            Int
+  codigoVerificacao String
+  emitidoPorId      String
+  emitidoEm         DateTime @default(now())
+
+  lancamento Lancamento @relation(fields: [lancamentoId], references: [id])
+  emitidoPor Usuario    @relation(fields: [emitidoPorId], references: [id])
+
+  @@unique([ano, numero])
+}
+
+// Contador do número do recibo, por ano (incrementado sob advisory lock).
+model SequenciaRecibo {
+  ano    Int @id
+  ultimo Int
+}
+
+// Foto imutável de um mês; despublicar não apaga.
+model PrestacaoContas {
+  id             String    @id @default(cuid())
+  ano            Int
+  mes            Int
+  versao         Int
+  token          String    @unique
+  dados          Json
+  publicadaPorId String
+  publicadaEm    DateTime  @default(now())
+  despublicada   Boolean   @default(false)
+  despublicadaEm DateTime?
+  visualizacoes  Int       @default(0)
+
+  publicadaPor Usuario @relation(fields: [publicadaPorId], references: [id])
+
+  @@unique([ano, mes, versao])
 }

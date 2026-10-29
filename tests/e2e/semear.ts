@@ -6,7 +6,7 @@ import { instalar } from "@/lib/services/instalacao";
 import { criarLancamento } from "@/lib/services/lancamentos";
 import { criarUsuario } from "@/lib/services/usuarios";
 import { resetarBanco } from "../helpers/db";
-import { ADMIN, DESCRICAO_PREVISTO, MEMBRO, TESOUREIRO } from "./dados";
+import { ADMIN, DESCRICAO_PREVISTO, DESCRICAO_SAIDA_DETALHADA, MEMBRO, MEMBRO_NOMINAL, TESOUREIRO } from "./dados";
 import { hojeSemente } from "./datas-semente";
 
 async function semear(): Promise<void> {
@@ -34,6 +34,32 @@ async function semear(): Promise<void> {
     descricao: DESCRICAO_PREVISTO,
     dataVencimento: hojeSemente(),
     realizado: false,
+  });
+
+  // Dízimo realizado HOJE de um membro de nome reconhecível: alimenta a contagem do culto, o recibo
+  // e a checagem de privacidade da prestação pública (o nome nunca pode aparecer lá).
+  const membroNominal = await criarMembro(admin, { nome: MEMBRO_NOMINAL });
+  const dizimo = await prisma.categoria.findFirstOrThrow({ where: { nome: "Dízimo", tipo: "ENTRADA" } });
+  await criarLancamento(admin, {
+    tipo: "ENTRADA",
+    valor: "100,00",
+    categoriaId: dizimo.id,
+    contaId: conta.id,
+    membroId: membroNominal.id,
+    dataVencimento: hojeSemente(),
+    realizado: true,
+  });
+
+  // Saída realizada este mês em categoria que detalha na prestação pública (Luz).
+  const luz = await prisma.categoria.findFirstOrThrow({ where: { nome: "Luz", tipo: "SAIDA" } });
+  await criarLancamento(admin, {
+    tipo: "SAIDA",
+    valor: "80,00",
+    categoriaId: luz.id,
+    contaId: conta.id,
+    descricao: DESCRICAO_SAIDA_DETALHADA,
+    dataVencimento: hojeSemente(),
+    realizado: true,
   });
 }
 

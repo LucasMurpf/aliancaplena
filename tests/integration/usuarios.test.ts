@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { conferirSenha, type UsuarioAtual } from "@/lib/auth";
+import { carregarUsuario, conferirSenha, criarTokenSessao, lerTokenSessao, type UsuarioAtual } from "@/lib/auth";
 import { NaoAutorizado, NaoEncontrado, RegraDeNegocio, Validacao } from "@/lib/erros";
 import { permissoesDe } from "@/lib/permissoes";
 import { instalar } from "@/lib/services/instalacao";
@@ -171,5 +171,47 @@ describe("redefinirSenha", () => {
     expect(log).toMatchObject({ acao: "ALTEROU", valorAnterior: null, valorNovo: null });
     await expect(redefinirSenha(admin, u.id, "curta")).rejects.toBeInstanceOf(Validacao);
     await expect(redefinirSenha(admin, "nada", "outra-senha-456")).rejects.toBeInstanceOf(NaoEncontrado);
+  });
+});
+
+describe("invalidação de sessões", () => {
+  beforeAll(() => {
+    process.env.SESSION_SECRET = "segredo-de-teste-com-mais-de-32-caracteres!!";
+  });
+
+  async function tokenDe(id: string) {
+    const u = await prisma.usuario.findUniqueOrThrow({ where: { id } });
+    return criarTokenSessao(id, u.versaoSessao);
+  }
+  async function valido(token: string) {
+    const s = await lerTokenSessao(token);
+    return s ? carregarUsuario(s.usuarioId, s.versao) : null;
+  }
+
+  it("redefinirSenha invalida o token anterior", async () => {
+    const u = await criarUsuario(admin, novo());
+    const token = await tokenDe(u.id);
+    expect(await valido(token)).not.toBeNull();
+    await redefinirSenha(admin, u.id, "outra-senha-forte-1");
+    expect(await valido(token)).toBeNull();
+  });
+
+  it("inativar invalida o token, mesmo após reativar", async () => {
+    const u = await criarUsuario(admin, novo());
+    const token = await tokenDe(u.id);
+    await definirAtivo(admin, u.id, false);
+    expect(await valido(token)).toBeNull();
+    await definirAtivo(admin, u.id, true);
+    expect(await valido(token)).toBeNull();
+    expect(await valido(await tokenDe(u.id))).not.toBeNull();
+  });
+
+  it("mudar papéis invalida o token; editar só o nome não", async () => {
+    const u = await criarUsuario(admin, novo());
+    const token = await tokenDe(u.id);
+    await atualizarUsuario(admin, u.id, { nome: "Outro Nome" });
+    expect(await valido(token)).not.toBeNull();
+    await atualizarUsuario(admin, u.id, { papeis: ["PASTOR"] });
+    expect(await valido(token)).toBeNull();
   });
 });

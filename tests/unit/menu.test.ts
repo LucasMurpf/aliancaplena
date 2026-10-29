@@ -6,7 +6,7 @@ const rotulos = (p: Parameters<typeof itensDoMenu>[0]) => itensDoMenu(p).map((i)
 describe("itensDoMenu", () => {
   it("Pastor não vê Contas, Categorias nem Usuários", () => {
     const r = rotulos(["PASTOR"]);
-    expect(r).toEqual(["Início", "Lançamentos", "Membros"]);
+    expect(r).toEqual(["Início", "Lançamentos", "Calculadora", "Relatórios", "Indicadores", "Membros"]);
   });
   it("Tesoureiro vê Contas e Categorias, não Usuários", () => {
     const r = rotulos(["TESOUREIRO"]);
@@ -17,7 +17,7 @@ describe("itensDoMenu", () => {
   });
   it("Admin vê tudo", () => {
     expect(rotulos(["ADMIN"])).toEqual([
-      "Início", "Lançamentos", "Membros", "Contas", "Categorias", "Usuários", "Dados da igreja",
+      "Início", "Lançamentos", "Calculadora", "Relatórios", "Indicadores", "Membros", "Contas", "Categorias", "Usuários", "Dados da igreja",
     ]);
   });
   it("Eventos vê só Início apontando para /em-breve", () => {

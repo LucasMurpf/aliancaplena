@@ -1,6 +1,6 @@
 "use server";
 
-import { gravarCookieSessao, criarTokenSessao } from "@/lib/auth";
+import { gravarCookieSessao, emitirTokenSessao } from "@/lib/auth";
 import { mensagemDeErro, type EstadoForm } from "@/lib/acoes";
 import { instalar } from "@/lib/services/instalacao";
 
@@ -17,7 +17,7 @@ export async function instalarAction(_anterior: EstadoForm, dados: FormData): Pr
       adminEmail: texto("adminEmail"),
       adminSenha: texto("adminSenha"),
     });
-    await gravarCookieSessao(await criarTokenSessao(usuario.id));
+    await gravarCookieSessao(await emitirTokenSessao(usuario.id));
     return { ok: true };
   } catch (e) {
     const { adminSenha: _senha, ...valores } = Object.fromEntries(

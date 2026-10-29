@@ -62,7 +62,7 @@ async function Detalhe({ params, searchParams }: Props) {
         </div>
       ) : (
         <>
-          <FormCategoria id={c.id} inicial={{ nome: c.nome, tipo: c.tipo, nominal: c.nominal }} />
+          <FormCategoria id={c.id} inicial={{ nome: c.nome, tipo: c.tipo, nominal: c.nominal, detalharPublico: c.detalharPublico }} />
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <p className="mb-3 text-sm text-slate-700">
               {c.ativa ? "Uma categoria inativa não aparece nos novos lançamentos. O histórico continua." : "Esta categoria está inativa e não aparece nos novos lançamentos."}

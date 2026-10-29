@@ -48,7 +48,7 @@ async function Detalhe({ searchParams }: Props) {
           </Suspense>
         </div>
       ) : (
-        <FormIgreja inicial={{ nomeIgreja: c.nomeIgreja, logoUrl: c.logoUrl ?? "", cnpj: c.cnpj ?? "", metricasAtivas: c.metricasAtivas }} />
+        <FormIgreja inicial={{ nomeIgreja: c.nomeIgreja, logoUrl: c.logoUrl ?? "", cnpj: c.cnpj ?? "", cidade: c.cidade ?? "", metricasAtivas: c.metricasAtivas }} />
       )}
     </div>
   );

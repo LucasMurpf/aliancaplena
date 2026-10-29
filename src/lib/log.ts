@@ -10,7 +10,11 @@ export type Acao =
   | "ANEXOU"
   | "LOGIN"
   | "LOGIN_FALHOU"
-  | "INSTALOU";
+  | "INSTALOU"
+  | "EMITIU_RECIBO"
+  | "PUBLICOU"
+  | "DESPUBLICOU"
+  | "REGISTROU_CONTAGEM";
 
 export type Entidade =
   | "Lancamento"
@@ -20,7 +24,9 @@ export type Entidade =
   | "Categoria"
   | "Usuario"
   | "Configuracao"
-  | "Login";
+  | "Login"
+  | "Contagem"
+  | "PrestacaoContas";
 
 export type EntradaLog = {
   usuarioId?: string;

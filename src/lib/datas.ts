@@ -29,6 +29,16 @@ export function formatarDataBR(d: Date): string {
   return `${dia}/${mes}/${d.getUTCFullYear()}`;
 }
 
+/** "dd/mm/aaaa" do dia civil de um instante no fuso de São Paulo (diferente de formatarDataBR, que lê UTC). */
+export function formatarDataSP(instante: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_NEGOCIO,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(instante);
+}
+
 /** Início (inclusive) e fim (exclusivo) de um mês, em meia-noite UTC. */
 export function limitesDoMes(ano: number, mes: number): { inicio: Date; fim: Date } {
   if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
@@ -51,4 +61,24 @@ export function hojeSP(): Date {
 
   const valor = (tipo: string) => Number(partes.find((p) => p.type === tipo)?.value);
   return new Date(Date.UTC(valor("year"), valor("month") - 1, valor("day")));
+}
+
+const MESES = [
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+];
+
+/** "27 de outubro de 2026", a partir dos componentes UTC. */
+export function dataPorExtenso(d: Date): string {
+  return `${d.getUTCDate()} de ${MESES[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
 }

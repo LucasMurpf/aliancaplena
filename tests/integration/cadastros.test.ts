@@ -128,6 +128,26 @@ describe("categorias", () => {
     expect(l).toMatchObject({ valorAnterior: "Não", valorNovo: "Sim" });
   });
 
+  it("detalharPublico: padrão false, criar com true, alterar loga Sim/Não; entrada ignora", async () => {
+    const padrao = await criarCategoria(admin, { nome: "Padrão DP", tipo: "SAIDA", nominal: false });
+    expect(padrao.detalharPublico).toBe(false);
+    const c = await criarCategoria(admin, { nome: "Com DP", tipo: "SAIDA", nominal: false, detalharPublico: true });
+    expect(c.detalharPublico).toBe(true);
+    await atualizarCategoria(admin, c.id, { detalharPublico: false });
+    expect((await prisma.categoria.findUniqueOrThrow({ where: { id: c.id } })).detalharPublico).toBe(false);
+    const l = (await logs(c.id)).find((x) => x.campo === "detalharPublico");
+    expect(l).toMatchObject({ acao: "ALTEROU", valorAnterior: "Sim", valorNovo: "Não" });
+    // sem mudança: nenhum log novo
+    await atualizarCategoria(admin, c.id, { detalharPublico: false });
+    expect((await logs(c.id)).filter((x) => x.campo === "detalharPublico")).toHaveLength(1);
+    // entrada nunca detalha
+    const e = await criarCategoria(admin, { nome: "Entrada DP", tipo: "ENTRADA", nominal: false, detalharPublico: true });
+    expect(e.detalharPublico).toBe(false);
+    await atualizarCategoria(admin, e.id, { detalharPublico: true });
+    expect((await prisma.categoria.findUniqueOrThrow({ where: { id: e.id } })).detalharPublico).toBe(false);
+    await expect(atualizarCategoria(admin, c.id, { detalharPublico: "x" as never })).rejects.toBeInstanceOf(Validacao);
+  });
+
   it("lista filtra por tipo e ativas; ativa/inativa", async () => {
     const c = await criarCategoria(admin, { nome: "Zed", tipo: "SAIDA", nominal: false });
     await definirCategoriaAtiva(admin, c.id, false);

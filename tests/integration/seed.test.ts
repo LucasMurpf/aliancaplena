@@ -18,6 +18,9 @@ test("seed cria as 12 categorias e é idempotente", async () => {
     nominal: true,
     ativa: true,
   });
+  expect(cats.filter((c) => c.detalharPublico).map((c) => c.nome).sort()).toEqual(
+    ["Aluguel", "Combustível", "Manutenção", "Materiais", "Missões (repasse)", "Luz", "Água"].sort(),
+  );
   expect(cats.filter((c) => c.nome.startsWith("Missões")).map((c) => c.tipo).sort()).toEqual([
     "ENTRADA",
     "SAIDA",

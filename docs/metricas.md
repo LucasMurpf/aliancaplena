@@ -6,7 +6,17 @@ O app registra **como as telas são usadas** (comportamento) para decidir o que 
 
 Cada evento guarda: data e hora, usuário e papéis, identificador da sessão do navegador, tipo de aparelho (celular, tablet ou PC), nome do evento, a tela (com ids trocados por `[id]`), a duração (quando faz sentido) e algumas propriedades de uma **lista fechada por evento**.
 
-Eventos: `login`, `sessao_expirou`, `tela_aberta`, `menu_aberto`, `lancamento_iniciado`, `lancamento_salvo`, `lancamento_abandonado`, `filtro_usado`, `grafico_interagido`, `erro_validacao`, `erro_inesperado`, `baixa_dada`, `lancamento_cancelado`, `transferencia_criada`, `anexo_enviado`, `membro_cadastrado_rapido`.
+Eventos: `login`, `sessao_expirou`, `tela_aberta`, `menu_aberto`, `lancamento_iniciado`, `lancamento_salvo`, `lancamento_abandonado`, `filtro_usado`, `grafico_interagido`, `erro_validacao`, `erro_inesperado`, `baixa_dada`, `lancamento_cancelado`, `transferencia_criada`, `anexo_enviado`, `membro_cadastrado_rapido`, `relatorio_gerado`, `recibo_emitido`, `prestacao_publicada`, `contagem_registrada`, `indicadores_aberto`.
+
+Eventos da Fase 2 (propriedades permitidas e significado):
+
+| Evento | Propriedades | O que significa |
+|---|---|---|
+| `relatorio_gerado` | `relatorio`, `formato` | Um relatório foi baixado (`formato`: PDF ou CSV; `relatorio`: qual deles). |
+| `recibo_emitido` | `compartilhado` | Um recibo foi emitido; `compartilhado` é verdadeiro quando foi enviado pela folha de compartilhamento do aparelho e falso quando foi baixado. |
+| `prestacao_publicada` | `versao` | Uma prestação de contas foi publicada; `versao` é o número da versão daquele mês. |
+| `contagem_registrada` | `modo`, `divergente` | Uma contagem da calculadora foi registrada (`modo`: culto ou caixa); `divergente` indica se a contagem diferiu do esperado. |
+| `indicadores_aberto` | nenhuma | A tela de Indicadores foi aberta. |
 
 A lista de eventos e de propriedades permitidas está em `src/lib/metricas/catalogo.ts`. Qualquer outra propriedade é descartada no servidor.
 
