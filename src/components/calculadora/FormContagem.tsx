@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { esperadoAction, registrarContagemAction } from "@/app/(sistema)/calculadora/actions";
 import {
   calcularTotalCentavos,
@@ -11,7 +11,10 @@ import {
   destinoErroContagem,
   formatarCentavos,
   observacaoParaEnvio,
+  somarPixCentavos,
+  valorDigitadoParaCentavos,
 } from "@/lib/calculadora";
+import { normalizarValorDigitado } from "@/lib/form-lancamento";
 import { rastrear } from "@/lib/metricas/cliente";
 import { CampoData } from "../CampoData";
 import { Alerta } from "../ui/Alerta";
@@ -34,6 +37,8 @@ export function FormContagem({ contas, hoje }: Props) {
   const [contaId, setContaId] = useState(() => contaPadraoId(contas));
   const [data, setData] = useState(hoje);
   const [qtd, setQtd] = useState<Record<number, number>>({});
+  const [pix, setPix] = useState<string[]>([""]);
+  const focarPix = useRef<number | null>(null);
   const [observacao, setObservacao] = useState("");
   const [esperado, setEsperado] = useState<Esperado | null>(null);
   const [calculando, setCalculando] = useState(true);
@@ -90,6 +95,25 @@ export function FormContagem({ contas, hoje }: Props) {
     [qtd],
   );
   const contado = calcularTotalCentavos(itens);
+  const totalPix = somarPixCentavos(pix);
+
+  // Cursor na linha nova ao adicionar um Pix, para digitar um valor atrás do outro.
+  useEffect(() => {
+    if (focarPix.current === null) return;
+    document.getElementById(`pix-${focarPix.current}`)?.focus();
+    focarPix.current = null;
+  }, [pix.length]);
+
+  const adicionarPix = () => {
+    focarPix.current = pix.length;
+    setPix((p) => [...p, ""]);
+  };
+  const removerPix = (i: number) => setPix((p) => (p.length === 1 ? [""] : p.filter((_, j) => j !== i)));
+  const aoTeclarPix = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault(); // Enter passa para o próximo Pix em vez de registrar a contagem.
+    adicionarPix();
+  };
   const diferenca = esperado && !calculando ? descreverDiferenca(contado - esperado.centavos) : null;
   const divergente = diferenca !== null && diferenca.estado !== "ok";
 
@@ -99,6 +123,11 @@ export function FormContagem({ contas, hoje }: Props) {
   async function aoEnviar(e: FormEvent) {
     e.preventDefault();
     if (enviando || calculando || !esperado) return;
+    const pixPreenchidos = pix.filter((v) => v.trim() !== "");
+    if (pixPreenchidos.some((v) => valorDigitadoParaCentavos(v) === null)) {
+      setErros({ pix: "Confira os valores de Pix: há um valor inválido" });
+      return;
+    }
     const obs = observacaoParaEnvio(observacao, contado - esperado.centavos);
     setEnviando(true);
     setErros({});
@@ -109,13 +138,14 @@ export function FormContagem({ contas, hoje }: Props) {
         contaId,
         ...(modo === "CULTO" ? { data } : {}),
         itens: itens.filter((i) => i.quantidade > 0),
+        pix: pixPreenchidos,
         ...(obs !== undefined ? { observacao: obs } : {}),
       });
       if (!r.ok) {
         if (r.campo || r.regra) rastrear("erro_validacao", { campo: r.campo ?? "geral", regra: r.regra ?? "outra" });
         if (r.inesperado) rastrear("erro_inesperado", { campo: "contagem" });
         // Só os campos que estão na tela; o esperado pode ter mudado, então busca de novo.
-        const visiveis = ["conta", ...(modo === "CULTO" ? ["data"] : []), ...(divergente ? ["observacao"] : [])];
+        const visiveis = ["conta", "pix", ...(modo === "CULTO" ? ["data"] : []), ...(divergente ? ["observacao"] : [])];
         const destino = destinoErroContagem(r, visiveis, CAMPO_TELA);
         if (destino.campo) setErros({ [destino.campo]: destino.mensagem });
         else setErroGeral(destino.mensagem);
@@ -202,7 +232,7 @@ export function FormContagem({ contas, hoje }: Props) {
   );
 
   return (
-    <form onSubmit={aoEnviar} className="flex flex-col gap-4 pb-44" noValidate>
+    <form onSubmit={aoEnviar} className="flex flex-col gap-4 pb-56" noValidate>
       {erroGeral ? <Alerta tipo="erro">{erroGeral}</Alerta> : null}
 
       <div role="radiogroup" aria-label="O que conferir" className="flex gap-1 rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
@@ -220,12 +250,58 @@ export function FormContagem({ contas, hoje }: Props) {
       {modo === "CULTO" ? <CampoData rotulo="Data do culto" value={data} onChange={mudarData} erro={erros.data} /> : null}
       <p className="text-sm text-slate-600">
         {modo === "CULTO"
-          ? "Esperado: soma das entradas realizadas da conta nessa data."
-          : "Esperado: saldo atual da conta."}
+          ? "Esperado: soma das entradas realizadas da conta nessa data. Só a espécie é comparada com ele."
+          : "Esperado: saldo atual da conta. Só a espécie é comparada com ele."}
       </p>
 
       {secao("Cédulas", "cedula")}
       {secao("Moedas", "moeda")}
+
+      <section aria-label="Pix" className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
+        <h2 className="px-1 text-base font-semibold text-slate-900">Pix</h2>
+        <p className="px-1 pb-2 text-sm text-slate-600">Um valor para cada Pix. O total fica separado da espécie e não vira lançamento.</p>
+        <ul className="flex flex-col gap-2">
+          {pix.map((valor, i) => (
+            <li key={i} className="flex items-center gap-2">
+              <label htmlFor={`pix-${i}`} className="w-[3.5rem] shrink-0 text-sm font-semibold text-slate-800 tabular-nums">
+                Pix {i + 1}
+              </label>
+              <input
+                id={`pix-${i}`}
+                type="text"
+                inputMode="decimal"
+                enterKeyHint="next"
+                autoComplete="off"
+                placeholder="0,00"
+                value={valor}
+                onChange={(ev) => {
+                  const novo = normalizarValorDigitado(ev.target.value);
+                  setPix((p) => p.map((v, j) => (j === i ? novo : v)));
+                }}
+                onKeyDown={aoTeclarPix}
+                aria-invalid={valor.trim() !== "" && valorDigitadoParaCentavos(valor) === null ? true : undefined}
+                className={`${CLASSE_INPUT} ${BORDA_OK} h-11 min-w-0 flex-1 text-lg font-semibold tabular-nums`}
+              />
+              <button
+                type="button"
+                aria-label={`Remover Pix ${i + 1}`}
+                onClick={() => removerPix(i)}
+                className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xl font-bold text-slate-800 hover:bg-slate-200"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {erros.pix ? <p className="mt-2 px-1 text-sm text-red-700">{erros.pix}</p> : null}
+        <button
+          type="button"
+          onClick={adicionarPix}
+          className="mt-2 min-h-11 w-full rounded-lg bg-white text-sm font-semibold text-marca-900 ring-1 ring-slate-300 hover:bg-slate-50"
+        >
+          Adicionar outro Pix
+        </button>
+      </section>
 
       {divergente ? (
         <div className="flex flex-col gap-1">
@@ -252,20 +328,27 @@ export function FormContagem({ contas, hoje }: Props) {
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-2 backdrop-blur lg:left-64 lg:px-8">
         <div className="mx-auto flex max-w-xl flex-col gap-2">
-          <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-center">
-            <div>
-              <dt className="text-xs text-slate-600">Contado</dt>
+          <dl className="grid grid-cols-6 gap-x-2 gap-y-1 text-center">
+            <div className="col-span-2">
+              <dt className="text-xs text-slate-600">Espécie</dt>
               <dd className="text-sm font-bold tabular-nums text-slate-900">{formatarCentavos(contado)}</dd>
             </div>
-            <div>
-              <dt className="text-xs text-slate-600">Esperado</dt>
+            <div className="col-span-2">
+              <dt className="text-xs text-slate-600">Pix</dt>
+              <dd className="text-sm font-bold tabular-nums text-slate-900">{formatarCentavos(totalPix)}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-xs text-slate-600">Espécie + Pix</dt>
+              <dd className="text-sm font-bold tabular-nums text-slate-900">{formatarCentavos(contado + totalPix)}</dd>
+            </div>
+            <div className="col-span-3">
+              <dt className="text-xs text-slate-600">Esperado em espécie</dt>
               <dd className="text-sm font-bold tabular-nums text-slate-900">
                 {calculando ? "calculando…" : esperado ? esperado.texto : "—"}
               </dd>
             </div>
-            {/* Diferença em linha própria: no celular (375px) os valores longos não quebram. */}
-            <div className="col-span-2">
-              <dt className="text-xs text-slate-600">Diferença</dt>
+            <div className="col-span-3">
+              <dt className="text-xs text-slate-600">Diferença da espécie</dt>
               <dd aria-live="polite" className={`text-sm font-bold tabular-nums ${diferenca ? COR[diferenca.estado] : "text-slate-500"}`}>
                 {calculando ? "…" : diferenca ? diferenca.texto : "—"}
               </dd>

@@ -44,6 +44,7 @@ async function Historico({ searchParams }: Props) {
     dif: descricaoDiferenca(c.diferenca),
     quando: c.data ?? formatarDataHora(c.criadoEm),
     contado: formatarBRL(c.totalContado),
+    pix: formatarBRL(c.totalPix),
     esperadoTxt: formatarBRL(c.esperado),
   }));
   const botaoPagina = "inline-flex min-h-11 items-center rounded-lg bg-white px-4 text-sm font-semibold text-marca-900 ring-1 ring-slate-300";
@@ -104,7 +105,7 @@ async function Historico({ searchParams }: Props) {
                     <span className={`shrink-0 text-sm font-bold ${c.dif.classe}`}>{c.dif.texto}</span>
                   </span>
                   <span className="mt-1 block text-sm text-slate-700 tabular-nums">
-                    Contado {c.contado} · Esperado {c.esperadoTxt}
+                    Espécie {c.contado} · Pix {c.pix} · Esperado {c.esperadoTxt}
                   </span>
                 </Link>
               </li>
@@ -118,7 +119,8 @@ async function Historico({ searchParams }: Props) {
                   <th className="px-4 py-3 font-semibold">Quando</th>
                   <th className="px-4 py-3 font-semibold">Tipo</th>
                   <th className="px-4 py-3 font-semibold">Conta</th>
-                  <th className="px-4 py-3 text-right font-semibold">Contado</th>
+                  <th className="px-4 py-3 text-right font-semibold">Espécie</th>
+                  <th className="px-4 py-3 text-right font-semibold">Pix</th>
                   <th className="px-4 py-3 text-right font-semibold">Esperado</th>
                   <th className="px-4 py-3 font-semibold">Diferença</th>
                   <th className="px-4 py-3 font-semibold">Contado por</th>
@@ -135,6 +137,7 @@ async function Historico({ searchParams }: Props) {
                     <td className="px-4 py-3">{ROTULO_MODO[c.modo]}</td>
                     <td className="px-4 py-3">{c.conta}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{c.contado}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{c.pix}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{c.esperadoTxt}</td>
                     <td className={`whitespace-nowrap px-4 py-3 font-semibold ${c.dif.classe}`}>{c.dif.texto}</td>
                     <td className="px-4 py-3">{c.criadoPor}</td>

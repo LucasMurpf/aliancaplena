@@ -57,7 +57,7 @@ describe("criarUsuario", () => {
     expect([...u.papeis].sort()).toEqual(["PATRIMONIO", "TESOUREIRO"]);
     const db = await prisma.usuario.findUniqueOrThrow({ where: { id: u.id } });
     expect(await conferirSenha("senha-forte-123", db.senhaHash)).toBe(true);
-    expect(permissoesDe(u.papeis)).toEqual(permissoesDe(["TESOUREIRO"]));
+    expect(permissoesDe(u.papeis)).toEqual(new Set([...permissoesDe(["TESOUREIRO"]), ...permissoesDe(["PATRIMONIO"])]));
     expect(permissoesDe(u.papeis).has("admin")).toBe(false);
     const logs = await prisma.log.findMany({ where: { entidade: "Usuario", entidadeId: u.id } });
     expect(logs).toHaveLength(1);

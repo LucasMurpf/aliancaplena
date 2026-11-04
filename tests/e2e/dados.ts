@@ -1,6 +1,7 @@
 // Dados fixos criados por tests/e2e/preparar.ts e usados pelos specs.
 export const ADMIN = { nome: "Administrador Teste", email: "admin@teste.local", senha: "Senha-Teste-123" };
 export const TESOUREIRO = { nome: "Tesoureiro Teste", email: "tesoureiro@teste.local", senha: "Senha-Teste-123" };
+export const RESP_PATRIMONIO = { nome: "Patrimônio Teste", email: "patrimonio@teste.local", senha: "Senha-Teste-123" };
 export const MEMBRO = "Maria da Silva Teste";
 export const MEMBRO_NOMINAL = "Zélia Nominal E2E";
 export const DESCRICAO_SAIDA_DETALHADA = "Conta de luz do mês E2E";

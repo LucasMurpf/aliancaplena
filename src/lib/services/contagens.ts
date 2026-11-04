@@ -4,17 +4,19 @@ import type { ContagemCaixa } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { exigir, type UsuarioAtual } from "@/lib/auth";
-import { formatarBRL } from "@/lib/dinheiro";
+import { formatarBRL, VALOR_MAXIMO } from "@/lib/dinheiro";
 import { formatarDataBR, hojeSP } from "@/lib/datas";
 import { NaoEncontrado, RegraDeNegocio, Validacao } from "@/lib/erros";
 import { registrarLog } from "@/lib/log";
 import { PAGINA_MAXIMA } from "@/lib/paginacao";
 import { rastrearServidor } from "./metricas";
 import { saldoDaConta } from "./resumo";
-import { esquemaDataOpcional, esquemaId, esquemaTextoOpcional, validar } from "./comum";
+import { esquemaDataOpcional, esquemaId, esquemaTextoOpcional, esquemaValor, validar } from "./comum";
 
 export const MSG_CONTAGEM_NAO_ENCONTRADA = "Contagem não encontrada";
-export const MSG_SEM_QUANTIDADE = "Informe ao menos uma quantidade";
+export const MSG_SEM_QUANTIDADE = "Informe ao menos uma quantidade ou um Pix";
+export const MSG_PIX_ACIMA_LIMITE = "A soma dos Pix passou do limite permitido";
+export const PIX_MAXIMOS = 500;
 export const MSG_OBSERVACAO_DIVERGENCIA = "Explique a diferença na observação";
 export const ITENS_POR_PAGINA_CONTAGENS = 20;
 export const QUANTIDADE_MAXIMA = 100_000;
@@ -38,7 +40,8 @@ export type ItemContagem = { denominacaoCentavos: number; quantidade: number };
 
 export type DadosEsperado = { modo: ModoContagem; contaId: string; data?: string };
 
-export type DadosContagem = DadosEsperado & { itens: ItemContagem[]; observacao?: string };
+/** `pix`: um valor em reais por Pix recebido, como digitado ("12,50"). */
+export type DadosContagem = DadosEsperado & { itens: ItemContagem[]; pix?: string[]; observacao?: string };
 
 export type FiltroContagens = { contaId?: string; de?: string; ate?: string; pagina?: number };
 
@@ -49,7 +52,9 @@ export type ContagemListada = {
   conta: string;
   /** dd/mm/aaaa no CULTO; null no CAIXA (a conferência é do saldo no momento). */
   data: string | null;
+  /** Total em espécie (cédulas e moedas): é o que se compara com o esperado. */
   totalContado: Prisma.Decimal;
+  totalPix: Prisma.Decimal;
   esperado: Prisma.Decimal;
   diferenca: Prisma.Decimal;
   observacao: string | null;
@@ -63,7 +68,7 @@ export type ItemContagemDetalhado = ItemContagem & {
   subtotal: Prisma.Decimal;
 };
 
-export type ContagemDetalhada = ContagemListada & { itens: ItemContagemDetalhado[] };
+export type ContagemDetalhada = ContagemListada & { itens: ItemContagemDetalhado[]; pix: Prisma.Decimal[] };
 
 // ------------------------------------------------------------- Validação
 
@@ -104,6 +109,7 @@ const esquemaEsperado = z.object({
 
 const esquemaContagem = esquemaEsperado.extend({
   itens: esquemaItens,
+  pix: z.array(esquemaValor, { error: "Pix inválido" }).max(PIX_MAXIMOS, "Pix demais nesta contagem").optional(),
   observacao: esquemaTextoOpcional,
 });
 
@@ -173,8 +179,11 @@ export async function registrarContagem(ator: UsuarioAtual | null, d: DadosConta
   const v = validar(esquemaContagem, d, { campos: CAMPOS_FORM });
   const data = dataDaContagem(v.modo, v.data);
   const itens = v.itens.filter((i) => i.quantidade > 0);
-  if (itens.length === 0) throw new Validacao(MSG_SEM_QUANTIDADE, { campo: "itens", regra: "obrigatorio" });
+  const pix = v.pix ?? [];
+  if (itens.length === 0 && pix.length === 0) throw new Validacao(MSG_SEM_QUANTIDADE, { campo: "itens", regra: "obrigatorio" });
   const totalContado = somarItens(itens);
+  const totalPix = pix.reduce((acc, p) => acc.add(p), new Prisma.Decimal(0));
+  if (totalPix.gt(VALOR_MAXIMO)) throw new Validacao(MSG_PIX_ACIMA_LIMITE, { campo: "pix", regra: "acima_limite" });
 
   return prisma.$transaction(async (tx) => {
     const conta = await tx.conta.findUnique({ where: { id: v.contaId }, select: { ativa: true } });
@@ -182,6 +191,7 @@ export async function registrarContagem(ator: UsuarioAtual | null, d: DadosConta
     if (!conta.ativa) throw new RegraDeNegocio("Conta inativa", { campo: "conta", regra: "inativo" });
 
     // O esperado é gravado agora: lançamentos posteriores não mudam esta contagem.
+    // A diferença compara só a espécie: o Pix não vira lançamento e fica à parte.
     const esperado = await esperadoNa(tx, v.modo, v.contaId, data);
     const diferenca = totalContado.sub(esperado);
     const divergente = !diferenca.isZero();
@@ -195,11 +205,13 @@ export async function registrarContagem(ator: UsuarioAtual | null, d: DadosConta
         contaId: v.contaId,
         data,
         totalContado,
+        totalPix,
         esperado,
         diferenca,
         observacao: v.observacao ?? null,
         criadoPorId: quem.id,
         itens: { create: itens.map((i) => ({ denominacaoCentavos: i.denominacaoCentavos, quantidade: i.quantidade })) },
+        pix: { create: pix.map((valor, ordem) => ({ ordem, valor })) },
       },
     });
     await registrarLog(tx, {
@@ -207,7 +219,7 @@ export async function registrarContagem(ator: UsuarioAtual | null, d: DadosConta
       entidade: "Contagem",
       entidadeId: c.id,
       acao: "REGISTROU_CONTAGEM",
-      valorNovo: `Contado ${formatarBRL(totalContado)} · Esperado ${formatarBRL(esperado)} · Diferença ${formatarBRL(diferenca)}`,
+      valorNovo: `Espécie ${formatarBRL(totalContado)} · Pix ${formatarBRL(totalPix)} · Esperado ${formatarBRL(esperado)} · Diferença ${formatarBRL(diferenca)}`,
     });
     await rastrearServidor(tx, quem, "contagem_registrada", { modo: v.modo, divergente });
     return c;
@@ -230,6 +242,7 @@ const paraListada = (c: ContagemComNomes): ContagemListada => ({
   conta: c.conta.nome,
   data: c.modo === ModoContagem.CULTO ? formatarDataBR(c.data) : null,
   totalContado: c.totalContado,
+  totalPix: c.totalPix,
   esperado: c.esperado,
   diferenca: c.diferenca,
   observacao: c.observacao,
@@ -264,11 +277,12 @@ export async function obterContagem(ator: UsuarioAtual | null, id: string): Prom
   exigir(ator, "financeiro.ver");
   const c = await prisma.contagemCaixa.findUnique({
     where: { id },
-    include: { ...incluirNomes, itens: { orderBy: { denominacaoCentavos: "desc" } } },
+    include: { ...incluirNomes, itens: { orderBy: { denominacaoCentavos: "desc" } }, pix: { orderBy: { ordem: "asc" } } },
   });
   if (!c) throw new NaoEncontrado(MSG_CONTAGEM_NAO_ENCONTRADA);
   return {
     ...paraListada(c),
+    pix: c.pix.map((p) => p.valor),
     itens: c.itens.map((i) => {
       const den = POR_CENTAVOS.get(i.denominacaoCentavos);
       return {

@@ -24,6 +24,23 @@ export function calcularTotalCentavos(itens: { denominacaoCentavos: number; quan
   return itens.reduce((acc, i) => acc + i.denominacaoCentavos * i.quantidade, 0);
 }
 
+// Mesmo formato aceito pelo servidor (parseValorBR).
+const PADRAO_VALOR = /^\s*((?:[1-9]\d{0,2}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*$/;
+
+/** Valor digitado em reais para centavos inteiros; null se vazio, zero ou fora do formato. */
+export function valorDigitadoParaCentavos(texto: string): number | null {
+  const m = PADRAO_VALOR.exec(texto);
+  if (!m) return null;
+  const [inteiro, decimais = ""] = m[1].replace(/\./g, "").split(",");
+  const centavos = Number(inteiro) * 100 + Number(decimais.padEnd(2, "0"));
+  return Number.isSafeInteger(centavos) && centavos > 0 ? centavos : null;
+}
+
+/** Soma dos Pix preenchidos; linhas vazias ou inválidas não entram. */
+export function somarPixCentavos(valores: readonly string[]): number {
+  return valores.reduce((acc, v) => acc + (valorDigitadoParaCentavos(v) ?? 0), 0);
+}
+
 /** "R$ 1.234,56"; negativo "-R$ 30,00". */
 export function formatarCentavos(n: number): string {
   const negativo = n < 0;

@@ -11,6 +11,7 @@ const ITENS: readonly (ItemMenu & { permissao: Permissao })[] = [
   { rotulo: "Relatórios", href: "/relatorios", icone: "📊", permissao: "financeiro.ver" },
   { rotulo: "Indicadores", href: "/indicadores", icone: "📈", permissao: "financeiro.ver" },
   { rotulo: "Membros", href: "/membros", icone: "👥", permissao: "membros.ver_nomes" },
+  { rotulo: "Patrimônio", href: "/patrimonio", icone: "🪑", permissao: "patrimonio.ver" },
   { rotulo: "Contas", href: "/configuracoes/contas", icone: "🏦", grupo: "Configurações", permissao: "cadastros.gerenciar" },
   { rotulo: "Categorias", href: "/configuracoes/categorias", icone: "🏷️", grupo: "Configurações", permissao: "cadastros.gerenciar" },
   { rotulo: "Usuários", href: "/configuracoes/usuarios", icone: "🔑", grupo: "Configurações", permissao: "admin" },
@@ -18,7 +19,7 @@ const ITENS: readonly (ItemMenu & { permissao: Permissao })[] = [
 ];
 
 export function itensDoMenu(papeis: Papel[]): ItemMenu[] {
-  if (!pode(papeis, "financeiro.ver")) {
+  if (!pode(papeis, "financeiro.ver") && !pode(papeis, "patrimonio.ver")) {
     return [{ rotulo: "Início", href: "/em-breve", icone: "🏠" }];
   }
   return ITENS.filter((i) => pode(papeis, i.permissao)).map(({ rotulo, href, icone, grupo }) => ({

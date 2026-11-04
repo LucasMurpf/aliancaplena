@@ -67,6 +67,7 @@ export const ROTULO_CAMPO: Record<string, string> = {
   metricasAtivas: "Coleta de métricas de uso",
   detalharPublico: "Detalhar na prestação pública",
   cidade: "Cidade",
+  local: "Local",
 };
 
 const LIMITE_HISTORICO = 200;

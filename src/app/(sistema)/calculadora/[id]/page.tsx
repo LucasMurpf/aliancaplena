@@ -81,8 +81,10 @@ async function Detalhe({ params, searchParams }: Props) {
         <p className="text-sm text-slate-600">Conferência de {c.modo === "CULTO" ? "culto" : "caixa"}</p>
         <p className={`text-3xl font-bold ${dif.classe}`}>{dif.texto}</p>
         <dl className="mt-3 divide-y divide-slate-100">
-          <Linha rotulo="Contado">{formatarBRL(c.totalContado)}</Linha>
-          <Linha rotulo="Esperado">{formatarBRL(c.esperado)}</Linha>
+          <Linha rotulo="Total em espécie">{formatarBRL(c.totalContado)}</Linha>
+          <Linha rotulo="Esperado em espécie">{formatarBRL(c.esperado)}</Linha>
+          <Linha rotulo="Total de Pix">{formatarBRL(c.totalPix)}</Linha>
+          <Linha rotulo="Espécie + Pix">{formatarBRL(c.totalContado.add(c.totalPix))}</Linha>
           <Linha rotulo="Conta">{c.conta}</Linha>
           <Linha rotulo={c.modo === "CULTO" ? "Data do culto" : "Conferido em"}>{c.data ?? formatarDataHora(c.criadoEm)}</Linha>
           <Linha rotulo="Contado por">{c.criadoPor}</Linha>
@@ -118,6 +120,22 @@ async function Detalhe({ params, searchParams }: Props) {
           ))}
         </ul>
       </section>
+
+      {c.pix.length > 0 ? (
+        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200" aria-labelledby="titulo-pix">
+          <h2 id="titulo-pix" className="text-base font-semibold text-slate-900">
+            Pix
+          </h2>
+          <ul className="mt-2 divide-y divide-slate-100">
+            {c.pix.map((valor, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <span className="font-semibold tabular-nums text-slate-800">Pix {i + 1}</span>
+                <span className="font-semibold tabular-nums text-slate-900">{formatarBRL(valor)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {podeHistorico ? (
         <section aria-label="Histórico">

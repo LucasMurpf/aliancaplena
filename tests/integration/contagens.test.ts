@@ -222,7 +222,7 @@ describe("registrarContagem", () => {
       acao: "REGISTROU_CONTAGEM",
       entidade: "Contagem",
       usuarioId: tesoureiro.id,
-      valorNovo: "Contado R$ 125,50 · Esperado R$ 125,50 · Diferença R$ 0,00",
+      valorNovo: "Espécie R$ 125,50 · Pix R$ 0,00 · Esperado R$ 125,50 · Diferença R$ 0,00",
     });
 
     const ev = await prisma.eventoUso.findFirstOrThrow({ where: { evento: "contagem_registrada" } });
@@ -243,7 +243,7 @@ describe("registrarContagem", () => {
     expect(c.diferenca.toFixed(2)).toBe("-30.00");
     expect(c.observacao).toBe("R$ 30 de troco devolvido");
     const lg = await prisma.log.findFirstOrThrow({ where: { entidadeId: c.id } });
-    expect(lg.valorNovo).toBe("Contado R$ 100,00 · Esperado R$ 130,00 · Diferença -R$ 30,00");
+    expect(lg.valorNovo).toBe("Espécie R$ 100,00 · Pix R$ 0,00 · Esperado R$ 130,00 · Diferença -R$ 30,00");
     const ev = await prisma.eventoUso.findFirstOrThrow({ where: { evento: "contagem_registrada" } });
     expect(ev.propriedades).toEqual({ modo: "CULTO", divergente: true });
   });
@@ -278,6 +278,52 @@ describe("registrarContagem", () => {
     expect(depois.diferenca.toFixed(2)).toBe("0.00");
   });
 
+  it("Pix fica separado da espécie: não entra na diferença e não vira lançamento", async () => {
+    await criarLancamento(tesoureiro, lanc({ valor: "100,00" }));
+    const lancamentosAntes = await prisma.lancamento.count();
+    const c = await registrarContagem(tesoureiro, {
+      modo: "CULTO",
+      contaId: caixa.id,
+      data: "10/03/2026",
+      itens: itensDe([[10000, 1]]),
+      pix: ["50,00", "12,50", "0,10"],
+    });
+    expect(c.totalContado.toFixed(2)).toBe("100.00");
+    expect(c.totalPix.toFixed(2)).toBe("62.60");
+    expect(c.diferenca.toFixed(2)).toBe("0.00");
+    expect(await prisma.lancamento.count()).toBe(lancamentosAntes);
+
+    const d = await obterContagem(pastor, c.id);
+    expect(d.totalPix.toFixed(2)).toBe("62.60");
+    expect(d.pix.map((p) => p.toFixed(2))).toEqual(["50.00", "12.50", "0.10"]);
+    const lg = await prisma.log.findFirstOrThrow({ where: { entidadeId: c.id } });
+    expect(lg.valorNovo).toBe("Espécie R$ 100,00 · Pix R$ 62,60 · Esperado R$ 100,00 · Diferença R$ 0,00");
+    expect((await listarContagens(pastor, {})).itens[0].totalPix.toFixed(2)).toBe("62.60");
+  });
+
+  it("contagem só de Pix é aceita; com esperado em espécie exige explicar a falta", async () => {
+    const dados = { modo: "CULTO" as const, contaId: caixa.id, data: "10/03/2026", itens: [], pix: ["30,00"] };
+    const semEsperado = await registrarContagem(tesoureiro, dados);
+    expect(semEsperado.totalContado.toFixed(2)).toBe("0.00");
+    expect(semEsperado.diferenca.toFixed(2)).toBe("0.00");
+
+    await criarLancamento(tesoureiro, lanc({ valor: "10,00" }));
+    const e = await falha(registrarContagem(tesoureiro, dados));
+    expect({ campo: e.campo, regra: e.regra }).toEqual({ campo: "observacao", regra: "obrigatorio_divergencia" });
+  });
+
+  it("valida os valores de Pix", async () => {
+    const d = { modo: "CULTO" as const, contaId: caixa.id, data: "10/03/2026", itens: [] };
+    for (const valor of ["0", "abc", "", "-5"]) {
+      const e = await falha(registrarContagem(tesoureiro, { ...d, pix: [valor] }));
+      expect(e).toBeInstanceOf(Validacao);
+      expect(e.campo).toBe("pix");
+    }
+    const soma = await falha(registrarContagem(tesoureiro, { ...d, pix: ["9.999.999.999,99", "1,00"] }));
+    expect({ campo: soma.campo, regra: soma.regra }).toEqual({ campo: "pix", regra: "acima_limite" });
+    expect(await prisma.contagemCaixa.count()).toBe(0);
+  });
+
   it("valida quantidades, itens, data e conta", async () => {
     const d = { modo: "CULTO" as const, contaId: caixa.id, data: "10/03/2026" };
     expect(await falha(registrarContagem(tesoureiro, { ...d, itens: itensDe([[100, -1]]) }))).toBeInstanceOf(Validacao);
@@ -285,7 +331,7 @@ describe("registrarContagem", () => {
     expect(await falha(registrarContagem(tesoureiro, { ...d, itens: itensDe([[300, 1]]) }))).toBeInstanceOf(Validacao);
     const vazio = await falha(registrarContagem(tesoureiro, { ...d, itens: itensDe([[100, 0]]) }));
     expect(vazio).toBeInstanceOf(Validacao);
-    expect(vazio.message).toBe("Informe ao menos uma quantidade");
+    expect(vazio.message).toBe("Informe ao menos uma quantidade ou um Pix");
     expect(await falha(registrarContagem(tesoureiro, { ...d, itens: [] }))).toBeInstanceOf(Validacao);
     const futura = await falha(registrarContagem(tesoureiro, { ...d, data: "01/01/2099", itens: itensDe([[100, 1]]) }));
     expect({ campo: futura.campo, regra: futura.regra }).toEqual({ campo: "data", regra: "futura" });
