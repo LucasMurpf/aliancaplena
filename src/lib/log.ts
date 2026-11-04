@@ -26,7 +26,8 @@ export type Entidade =
   | "Configuracao"
   | "Login"
   | "Contagem"
-  | "PrestacaoContas";
+  | "PrestacaoContas"
+  | "Bem";
 
 export type EntradaLog = {
   usuarioId?: string;

@@ -13,9 +13,9 @@ describe("permissões", () => {
     expect(pode([...papeis], "financeiro.lancar")).toBe(true);
   });
 
-  it("Tesoureiro + Patrimônio é igual a Tesoureiro", () => {
-    expect(permissoesDe(["TESOUREIRO", "PATRIMONIO"])).toEqual(
-      permissoesDe(["TESOUREIRO"]),
+  it("Tesoureiro + Patrimônio soma as permissões do patrimônio", () => {
+    expect([...permissoesDe(["TESOUREIRO", "PATRIMONIO"])].sort()).toEqual(
+      [...permissoesDe(["TESOUREIRO"]), "patrimonio.ver", "patrimonio.gerenciar"].sort(),
     );
   });
 
@@ -23,18 +23,18 @@ describe("permissões", () => {
     expect(permissoesDe(["EVENTOS"]).size).toBe(0);
   });
 
-  it("Patrimônio sozinho não tem permissões na Fase 1", () => {
-    expect(permissoesDe(["PATRIMONIO"]).size).toBe(0);
+  it("Patrimônio sozinho vê e gerencia bens, sem acesso ao financeiro", () => {
+    expect([...permissoesDe(["PATRIMONIO"])].sort()).toEqual(["historico.ver", "patrimonio.gerenciar", "patrimonio.ver"]);
   });
 
   it("sem papéis, sem permissões", () => {
     expect(permissoesDe([]).size).toBe(0);
   });
 
-  it("Admin tem todas as 7", () => {
+  it("Admin tem todas as 9", () => {
     const p = permissoesDe(["ADMIN"]);
-    expect(TODAS_PERMISSOES).toHaveLength(7);
-    expect(p.size).toBe(7);
+    expect(TODAS_PERMISSOES).toHaveLength(9);
+    expect(p.size).toBe(9);
     for (const perm of TODAS_PERMISSOES) expect(p.has(perm)).toBe(true);
   });
 
@@ -44,13 +44,13 @@ describe("permissões", () => {
 
   it("Pastor: matriz da spec", () => {
     expect([...permissoesDe(["PASTOR"])].sort()).toEqual(
-      ["financeiro.ver", "historico.ver", "membros.gerenciar", "membros.ver_nomes"].sort(),
+      ["financeiro.ver", "historico.ver", "membros.gerenciar", "membros.ver_nomes", "patrimonio.ver"].sort(),
     );
   });
 
-  it("Tesoureiro: tudo menos admin", () => {
+  it("Tesoureiro: tudo menos admin e patrimônio", () => {
     expect([...permissoesDe(["TESOUREIRO"])].sort()).toEqual(
-      TODAS_PERMISSOES.filter((p) => p !== "admin").sort(),
+      TODAS_PERMISSOES.filter((p) => p !== "admin" && !p.startsWith("patrimonio.")).sort(),
     );
   });
 });

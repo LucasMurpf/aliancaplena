@@ -6,7 +6,7 @@ import { instalar } from "@/lib/services/instalacao";
 import { criarLancamento } from "@/lib/services/lancamentos";
 import { criarUsuario } from "@/lib/services/usuarios";
 import { resetarBanco } from "../helpers/db";
-import { ADMIN, DESCRICAO_PREVISTO, DESCRICAO_SAIDA_DETALHADA, MEMBRO, MEMBRO_NOMINAL, TESOUREIRO } from "./dados";
+import { ADMIN, DESCRICAO_PREVISTO, DESCRICAO_SAIDA_DETALHADA, MEMBRO, MEMBRO_NOMINAL, RESP_PATRIMONIO, TESOUREIRO } from "./dados";
 import { hojeSemente } from "./datas-semente";
 
 async function semear(): Promise<void> {
@@ -21,6 +21,7 @@ async function semear(): Promise<void> {
     adminSenha: ADMIN.senha,
   });
   await criarUsuario(admin, { ...TESOUREIRO, papeis: ["TESOUREIRO"] });
+  await criarUsuario(admin, { ...RESP_PATRIMONIO, papeis: ["PATRIMONIO"] });
   await criarMembro(admin, { nome: MEMBRO });
 
   // Previsto de SAÍDA: dar baixa nele não mexe nas Entradas conferidas no teste do celular.

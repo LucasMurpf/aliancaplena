@@ -10,6 +10,8 @@ export const TODAS_PERMISSOES = [
   "cadastros.gerenciar",
   "admin",
   "historico.ver",
+  "patrimonio.ver",
+  "patrimonio.gerenciar",
 ] as const;
 
 export type Permissao = (typeof TODAS_PERMISSOES)[number];
@@ -30,11 +32,12 @@ const PERMISSOES_POR_PAPEL: Record<Papel, readonly Permissao[]> = {
     "membros.ver_nomes",
     "membros.gerenciar",
     "historico.ver",
+    "patrimonio.ver",
   ],
   TESOUREIRO: TESOURARIA,
-  // Sem permissões na Fase 1 (só a tela "Módulo em breve").
+  // Sem permissões por enquanto (só a tela "Módulo em breve").
   EVENTOS: [],
-  PATRIMONIO: [],
+  PATRIMONIO: ["patrimonio.ver", "patrimonio.gerenciar", "historico.ver"],
 };
 
 /** União das permissões de todos os papéis do usuário. */

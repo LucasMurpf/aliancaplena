@@ -8,6 +8,8 @@ import {
   formatarCentavos,
   MSG_ESPERADO_MUDOU,
   observacaoParaEnvio,
+  somarPixCentavos,
+  valorDigitadoParaCentavos,
 } from "@/lib/calculadora";
 import { DENOMINACOES } from "@/lib/services/contagens";
 
@@ -39,6 +41,30 @@ describe("calcularTotalCentavos", () => {
   it("aguenta o máximo de 100000 em todas as denominações", () => {
     const itens = DENOMINACOES_CLIENTE.map((d) => ({ denominacaoCentavos: d.centavos, quantidade: 100000 }));
     expect(Number.isSafeInteger(calcularTotalCentavos(itens))).toBe(true);
+  });
+});
+
+describe("valorDigitadoParaCentavos", () => {
+  it("converte o formato brasileiro sem ponto flutuante", () => {
+    expect(valorDigitadoParaCentavos("50")).toBe(5000);
+    expect(valorDigitadoParaCentavos("12,5")).toBe(1250);
+    expect(valorDigitadoParaCentavos("0,29")).toBe(29);
+    expect(valorDigitadoParaCentavos("1.234,56")).toBe(123456);
+  });
+  it("vazio, zero e formato inválido dão null", () => {
+    for (const t of ["", "  ", "0", "0,00", "abc", "1,234", "1.23,45", "0.500", ","]) {
+      expect(valorDigitadoParaCentavos(t)).toBeNull();
+    }
+  });
+});
+
+describe("somarPixCentavos", () => {
+  it("soma cada Pix e ignora linhas vazias ou inválidas", () => {
+    expect(somarPixCentavos(["50", "", "12,50", "abc"])).toBe(6250);
+    expect(somarPixCentavos([""])).toBe(0);
+  });
+  it("sem erro de ponto flutuante", () => {
+    expect(somarPixCentavos(["0,10", "0,20"])).toBe(30);
   });
 });
 

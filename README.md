@@ -49,12 +49,14 @@ O E2E faz o build, sobe o app na porta 3100 apontando para `DATABASE_URL_TEST`, 
 
 ## Fase 2
 
-**Calculadora de cédulas** (menu *Calculadora*). Feita para o celular: botões grandes de mais e menos para cada cédula e moeda, com o total sempre visível. Tem dois modos:
+**Calculadora de cédulas** (menu *Calculadora*). Feita para o celular: botões grandes de mais e menos para cada cédula e moeda, um campo de valor para cada Pix, e os totais de espécie e de Pix sempre visíveis. Tem dois modos:
 
 - **Conferir culto**: compara o que foi contado com as entradas realizadas da conta na data do culto.
 - **Conferir caixa**: compara com o saldo atual da conta.
 
-Se a contagem divergir do esperado, a observação explicando a diferença é obrigatória. A contagem fica registrada com histórico e, quando há diferença, a tela do detalhe oferece "Lançar ajuste" (sobra vira entrada, falta vira saída).
+O esperado é comparado **só com a espécie** (cédulas e moedas). O Pix é somado à parte, fica registrado na contagem e não vira lançamento.
+
+Se a espécie divergir do esperado, a observação explicando a diferença é obrigatória. A contagem fica registrada com histórico e, quando há diferença, a tela do detalhe oferece "Lançar ajuste" (sobra vira entrada, falta vira saída).
 
 **Recibos.** Entradas realizadas de categorias nominais (como o dízimo) com membro informado têm o botão **Gerar recibo** na tela do lançamento. A numeração é por ano e sequencial (`AAAA/NNNNNN`) e nunca se repete. No celular o PDF abre a folha de compartilhamento; no computador ele é baixado como `recibo-AAAA-NNNNNN.pdf`. Gerar de novo mantém o mesmo número. **Depois de emitido, o lançamento não pode ter valor, membro, categoria, tipo ou data editados**: para corrigir, cancele o lançamento e lance de novo. A cidade que aparece no recibo vem de *Configurações > Dados da igreja* (campo **Cidade**).
 
@@ -73,6 +75,8 @@ Se a contagem divergir do esperado, a observação explicando a diferença é ob
 **Indicadores** (menu *Indicadores*): gráficos e números da evolução financeira da igreja ao longo dos meses.
 
 Os novos eventos de uso estão em [docs/metricas.md](docs/metricas.md).
+
+**Patrimônio** (menu *Patrimônio*). Cadastro de bens com descrição, valor e local, com histórico de alterações. Quem tem o papel **Responsável pelo Patrimônio** (ou é Admin) cadastra e edita; o Pastor só consulta. Para o tesoureiro cuidar do patrimônio, marque os dois papéis no usuário. Ainda não há empréstimo nem baixa de bens.
 
 ## Instalar para uma nova igreja
 
@@ -105,7 +109,7 @@ Cada igreja tem o próprio banco, bucket e site. Todos os serviços abaixo têm 
 Para levar a Fase 2 (ou qualquer versão nova) a uma igreja que já usa o sistema:
 
 1. Atualize o código e instale as dependências: `npm install`.
-2. Aplique as migrações pendentes no banco da igreja: `DATABASE_URL="postgresql://..." npm run db:deploy`. Para a Fase 2 isso aplica a migração `20261027000000_fase2`. Faça um [backup](#backup-manual) antes.
+2. Aplique as migrações pendentes no banco da igreja: `DATABASE_URL="postgresql://..." npm run db:deploy`. Para a Fase 2 isso aplica as migrações `20261027000000_fase2` e `20261104000000_pix_e_patrimonio`. Faça um [backup](#backup-manual) antes.
 3. Faça o deploy (na Vercel, um novo push ou *Redeploy*).
 4. Em *Configurações > Dados da igreja*, preencha a **Cidade** (aparece no recibo).
 

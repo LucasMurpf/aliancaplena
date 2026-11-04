@@ -6,7 +6,7 @@ const rotulos = (p: Parameters<typeof itensDoMenu>[0]) => itensDoMenu(p).map((i)
 describe("itensDoMenu", () => {
   it("Pastor não vê Contas, Categorias nem Usuários", () => {
     const r = rotulos(["PASTOR"]);
-    expect(r).toEqual(["Início", "Lançamentos", "Calculadora", "Relatórios", "Indicadores", "Membros"]);
+    expect(r).toEqual(["Início", "Lançamentos", "Calculadora", "Relatórios", "Indicadores", "Membros", "Patrimônio"]);
   });
   it("Tesoureiro vê Contas e Categorias, não Usuários", () => {
     const r = rotulos(["TESOUREIRO"]);
@@ -17,11 +17,18 @@ describe("itensDoMenu", () => {
   });
   it("Admin vê tudo", () => {
     expect(rotulos(["ADMIN"])).toEqual([
-      "Início", "Lançamentos", "Calculadora", "Relatórios", "Indicadores", "Membros", "Contas", "Categorias", "Usuários", "Dados da igreja",
+      "Início", "Lançamentos", "Calculadora", "Relatórios", "Indicadores", "Membros", "Patrimônio", "Contas", "Categorias", "Usuários", "Dados da igreja",
     ]);
   });
   it("Eventos vê só Início apontando para /em-breve", () => {
     expect(itensDoMenu(["EVENTOS"])).toEqual([{ rotulo: "Início", href: "/em-breve", icone: "🏠" }]);
+  });
+  it("Patrimônio sozinho vê só o Patrimônio", () => {
+    expect(itensDoMenu(["PATRIMONIO"])).toEqual([{ rotulo: "Patrimônio", href: "/patrimonio", icone: "🪑" }]);
+  });
+  it("Tesoureiro só vê Patrimônio se também tiver o papel", () => {
+    expect(rotulos(["TESOUREIRO"])).not.toContain("Patrimônio");
+    expect(rotulos(["TESOUREIRO", "PATRIMONIO"])).toContain("Patrimônio");
   });
   it("sem papéis: só /em-breve", () => {
     expect(itensDoMenu([]).map((i) => i.href)).toEqual(["/em-breve"]);

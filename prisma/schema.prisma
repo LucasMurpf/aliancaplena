@@ -236,7 +236,9 @@ model ContagemCaixa {
   modo         ModoContagem
   contaId      String
   data         DateTime     @db.Date
+  // Só a espécie (cédulas e moedas): é ela que se compara com o esperado. O Pix fica em totalPix.
   totalContado Decimal      @db.Decimal(12, 2)
+  totalPix     Decimal      @default(0) @db.Decimal(12, 2)
   esperado     Decimal      @db.Decimal(12, 2)
   diferenca    Decimal      @db.Decimal(12, 2)
   observacao   String?
@@ -246,6 +248,7 @@ model ContagemCaixa {
   conta     Conta          @relation(fields: [contaId], references: [id])
   criadoPor Usuario        @relation(fields: [criadoPorId], references: [id])
   itens     ContagemItem[]
+  pix       ContagemPix[]
 }
 
 model ContagemItem {
@@ -256,6 +259,17 @@ model ContagemItem {
   contagem ContagemCaixa @relation(fields: [contagemId], references: [id])
 
   @@id([contagemId, denominacaoCentavos])
+}
+
+// Cada Pix conferido na contagem (só conferência: não vira lançamento).
+model ContagemPix {
+  contagemId String
+  ordem      Int
+  valor      Decimal @db.Decimal(12, 2)
+
+  contagem ContagemCaixa @relation(fields: [contagemId], references: [id])
+
+  @@id([contagemId, ordem])
 }
 
 model Recibo {
@@ -296,4 +310,14 @@ model PrestacaoContas {
   publicadaPor Usuario @relation(fields: [publicadaPorId], references: [id])
 
   @@unique([ano, mes, versao])
+}
+
+// Patrimônio (versão mínima): só o cadastro dos bens, sem empréstimo nem baixa.
+model Bem {
+  id           String   @id @default(cuid())
+  descricao    String
+  valor        Decimal  @db.Decimal(12, 2)
+  local        String
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 }

@@ -26,6 +26,7 @@ export function CascaSistema({ itens, nomeIgreja, logoUrl, nomeUsuario, podeLanc
   const emFormulario =
     pathname.startsWith("/lancamentos/novo") ||
     pathname.startsWith("/calculadora/nova") ||
+    pathname.startsWith("/patrimonio/") ||
     pathname.startsWith("/relatorios") ||
     pathname.startsWith("/indicadores") ||
     /^\/lancamentos\/[^/]+\/editar/.test(pathname) ||

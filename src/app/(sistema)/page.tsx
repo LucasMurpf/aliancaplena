@@ -77,7 +77,7 @@ export default function PaginaInicio({ searchParams }: Props) {
 async function Painel({ searchParams }: Props) {
   const usuario = await obterUsuarioAtual();
   if (!usuario) redirect("/login?expirou=1");
-  if (!pode(usuario.papeis, "financeiro.ver")) redirect("/em-breve");
+  if (!pode(usuario.papeis, "financeiro.ver")) redirect(pode(usuario.papeis, "patrimonio.ver") ? "/patrimonio" : "/em-breve");
 
   const mes = parseMes((await searchParams).mes, hojeSP());
   const [contas, saldoTotal, resumo, avisos] = await Promise.all([
